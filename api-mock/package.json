@@ -1,0 +1,11 @@
+{
+  "name": "nemo-data-designer-mock-api",
+  "version": "1.0.0",
+  "description": "Mock API for NeMo Data Designer development",
+  "main": "server.js",
+  "dependencies": {
+    "express": "^4.18.2",
+    "uuid": "^9.0.0",
+    "cors": "^2.8.5"
+  }
+}

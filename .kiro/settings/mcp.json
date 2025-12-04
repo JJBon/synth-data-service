@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "nemo-data-designer": {
+      "command": "node",
+      "args": ["mcp-server/index.js"],
+      "env": {
+        "NEMO_DATA_DESIGNER_URL": "http://localhost:8080"
+      },
+      "disabled": false,
+      "autoApprove": []
+    }
+  }
+}
