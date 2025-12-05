@@ -1,0 +1,11 @@
+steps:
+  - label: ":python: Run Tests"
+    key: "tests"
+    plugins:
+      - docker#v5.8.0:
+          image: "python:3.12"
+          workdir: /app
+    command:
+      - "pip install -r mcp_server_py/requirements.txt"
+      - "pip install pytest"
+      - "pytest"

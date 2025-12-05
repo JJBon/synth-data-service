@@ -1,0 +1,8 @@
+mcp
+pydantic>=2.0
+httpx
+python-dotenv
+langgraph
+langchain
+fastapi
+uvicorn
