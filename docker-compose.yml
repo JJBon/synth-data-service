@@ -2,7 +2,7 @@ services:
   nemo-data-designer:
     # NeMo Data Designer service - update image path based on your NGC access
     # Check available images: https://catalog.ngc.nvidia.com/orgs/nvidia/teams/nemo/containers
-    image: nvcr.io/nvidia/nemo:24.07  # Using base NeMo image as fallback
+    image: nvcr.io/nvidia/nemo:24.07 # Using base NeMo image as fallback
     container_name: nemo-data-designer
     ports:
       - "8080:8080"
@@ -15,15 +15,15 @@ services:
       - ./jobs:/jobs
       - ./config:/config
     restart: unless-stopped
-    command: >
-      bash -c "
-      echo 'NeMo Data Designer Service Starting...';
-      echo 'Note: Update docker-compose.yml with the correct image from NGC catalog';
-      echo 'Visit: https://catalog.ngc.nvidia.com/orgs/nvidia/teams/nemo';
-      python -m http.server 8080
-      "
+    # command: >
+    #   bash -c "
+    #   echo 'NeMo Data Designer Service Starting...';
+    #   echo 'Note: Update docker-compose.yml with the correct image from NGC catalog';
+    #   echo 'Visit: https://catalog.ngc.nvidia.com/orgs/nvidia/teams/nemo';
+    #   python -m http.server 8080
+    #   "
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/" ]
       interval: 30s
       timeout: 10s
       retries: 3
