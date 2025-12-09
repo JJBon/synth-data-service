@@ -13,6 +13,8 @@ spec:
       labels:
         app: data-designer
     spec:
+      imagePullSecrets:
+      - name: ngc-registry
       tolerations:
       - key: "nvidia.com/gpu"
         operator: "Equal"
@@ -27,12 +29,12 @@ spec:
         - name: LITELLM_KEY
           valueFrom:
             secretKeyRef:
-              name: nemo-secrets
+              name: app-secrets
               key: LITELLM_KEY
         - name: NIM_API_KEY
           valueFrom:
             secretKeyRef:
-              name: nemo-secrets
+              name: app-secrets
               key: NIM_API_KEY
         - name: NEMO_MICROSERVICES_DATA_DESIGNER_JOB_IMAGE
           value: "nvcr.io/nvidia/nemo-microservices/data-designer:25.11"
