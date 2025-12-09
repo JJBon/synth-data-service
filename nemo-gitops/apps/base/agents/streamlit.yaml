@@ -35,8 +35,16 @@ spec:
         - secretRef:
             name: app-secrets
         
-        # We need volume mounts for persistence if we want to share data?
-        # For now, simplifying. 
+        volumeMounts:
+        - name: data-volume
+          mountPath: /data
+        - name: output-volume
+          mountPath: /data-designer-output
+      volumes:
+      - name: data-volume
+        emptyDir: {}
+      - name: output-volume
+        emptyDir: {}
 
 ---
 apiVersion: v1
