@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: langgraph-server
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: langgraph-server
+  template:
+    metadata:
+      labels:
+        app: langgraph-server
+    spec:
+      containers:
+      - name: langgraph-server
+        image: <YOUR_ECR_REPO>/langgraph-server:latest
+        ports:
+        - containerPort: 8003
+        env:
+        - name: MCP_SERVER_URL
+          value: "http://mcp-server-sdk:8002/sse"
+        - name: LLM_BASE_URL
+          value: "http://litellm:4000/v1"
+        - name: LLM_MODEL
+          value: "bedrock-claude-haiku"
+        # Secrets should be injected via envFrom or secretKeyRef
+        envFrom:
+        - secretRef:
+            name: app-secrets
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: langgraph-server
+  namespace: default
+spec:
+  selector:
+    app: langgraph-server
+  ports:
+  - port: 8003
+    targetPort: 8003

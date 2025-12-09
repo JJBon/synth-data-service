@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: streamlit-ui
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: streamlit-ui
+  template:
+    metadata:
+      labels:
+        app: streamlit-ui
+    spec:
+      containers:
+      - name: streamlit-ui
+        image: <YOUR_ECR_REPO>/streamlit-ui:latest
+        ports:
+        - containerPort: 8501
+        env:
+        - name: MCP_SERVER_URL
+          value: "http://mcp-server-sdk:8002/sse"
+        - name: LANGGRAPH_SERVER_URL
+          value: "http://langgraph-server:8003"
+        - name: DATA_OUTPUT_DIR
+          value: "/data-designer-output"
+        - name: DUCKDB_PATH
+          value: "/data/data_designer.duckdb"
+        - name: LLM_BASE_URL
+          value: "http://litellm:4000/v1"
+        - name: LLM_MODEL
+          value: "bedrock-claude-haiku"
+        envFrom:
+        - secretRef:
+            name: app-secrets
+        
+        # We need volume mounts for persistence if we want to share data?
+        # For now, simplifying. 
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: streamlit-ui
+  namespace: default
+spec:
+  selector:
+    app: streamlit-ui
+  ports:
+  - port: 8501
+    targetPort: 8501
+  type: LoadBalancer # Expose to user

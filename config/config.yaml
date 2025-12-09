@@ -1,0 +1,69 @@
+
+# platform is the platform-wide configuration for NeMo Microservices Platform
+platform:
+  debug: false
+  log_level: "INFO"
+  base_url: "http://localhost:8000"
+  jobs_url: "http://localhost:8000"
+  models_url: "http://localhost:8000"
+  datastore_url: "http://localhost:8000/v1/hf"
+  host: "0.0.0.0"
+  port: 8000
+
+data_designer:
+  seed_dataset_source_registry:
+    sources:
+      - endpoint: "http://datastore:3000/v1/hf"
+
+  model_provider_registry:
+    default: "nvidiabuild"
+    providers:
+      - name: "nvidiabuild"
+        endpoint: "https://integrate.api.nvidia.com/v1"
+        api_key: "NIM_API_KEY"
+  safe_synthesizer:
+    classify_llm_endpoint_url: "https://integrate.api.nvidia.com/v1"
+    classify_llm_model_id: "qwen/qwen2.5-coder-32b-instruct"
+
+  jobs:
+    secrets:
+      backend: vault
+      vault:
+        address: "http://openbao:8200"
+        token: "root"
+
+    executors:
+      - provider: cpu
+        profile: default
+        backend: docker
+        config:
+          storage:
+            volume_name: nemo-microservices_jobs_storage
+      - provider: gpu
+        profile: default
+        backend: docker
+        config:
+          storage:
+            volume_name: nemo-microservices_jobs_storage
+
+  models:
+    host: "0.0.0.0"
+    port: 8000
+    controller:
+      interval_seconds: 30
+      sleep_seconds: 10
+    secrets:
+      backend: vault
+      vault:
+        address: "http://openbao:8200"
+        token: "root"
+
+  inference_gateway:
+    host: "0.0.0.0"
+    port: 8000
+    refresh_model_cache_interval_sec: 3
+    secrets:
+      backend: vault
+      vault:
+        address: "http://openbao:8200"
+        token: "root"

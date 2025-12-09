@@ -72,3 +72,8 @@ docker-compose.override.yml
 *.tmp
 .cache/
 .temp/
+
+# NeMo Data Designer Outputs
+data-designer-output/
+streamlit_data/
+dataset/

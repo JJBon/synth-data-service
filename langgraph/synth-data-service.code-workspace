@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "../../token_agents"
+		},
+		{
+			"path": "../../litellm-langchain"
+		},
+		{
+			"path": ".."
+		}
+	],
+	"settings": {}
+}

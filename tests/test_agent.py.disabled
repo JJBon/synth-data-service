@@ -1,0 +1,51 @@
+import pytest
+from unittest.mock import MagicMock, patch
+from langgraph.graph import StateGraph
+from langchain_core.messages import AIMessage, HumanMessage
+
+# Mock the mcp_server_py module BEFORE importing agent
+sys_mock = MagicMock()
+mcp_server_mock = MagicMock()
+with patch.dict('sys.modules', {'mcp_server_py': sys_mock, 'mcp_server_py.server': mcp_server_mock}):
+    from langgraph.agent import planner_node, tool_node, submitter_node, DesignState
+
+def test_planner_node():
+    state = {"messages": []}
+    result = planner_node(state)
+    assert len(result["messages"]) == 1
+    assert "Planning" in result["messages"][0].content
+
+@patch('langgraph.agent.create_model_config')
+@patch('langgraph.agent.create_category_sampler')
+@patch('langgraph.agent.create_llm_text_column')
+@patch('langgraph.agent.create_score')
+@patch('langgraph.agent.create_llm_judge_column')
+def test_tool_node(mock_judge, mock_score, mock_text, mock_cat, mock_model):
+    # Setup mocks
+    mock_model.return_value = {"alias": "gpt4"}
+    mock_cat.return_value = {"name": "topic"}
+    mock_text.return_value = {"name": "question"}
+    mock_score.return_value = {"name": "Accuracy"}
+    mock_judge.return_value = {"name": "eval"}
+    
+    state = {"messages": []}
+    result = tool_node(state)
+    
+    assert len(result["model_configs"]) == 1
+    assert len(result["column_configs"]) == 4 # category, question, answer, judge
+    assert len(result["scores"]) == 1
+    assert "Tools executed" in result["messages"][0].content
+
+@patch('langgraph.agent.submit_job')
+def test_submitter_node(mock_submit):
+    mock_submit.return_value = "job-123"
+    
+    state = {
+        "model_configs": [],
+        "column_configs": [], 
+        "num_samples": 10
+    }
+    result = submitter_node(state)
+    
+    assert result["job_id"] == "job-123"
+    assert result["messages"][0].content == "job-123"

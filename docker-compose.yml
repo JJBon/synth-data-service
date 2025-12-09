@@ -1,30 +1,72 @@
 services:
-  nemo-data-designer:
-    # NeMo Data Designer service - update image path based on your NGC access
-    # Check available images: https://catalog.ngc.nvidia.com/orgs/nvidia/teams/nemo/containers
-    image: nvcr.io/nvidia/nemo:24.07 # Using base NeMo image as fallback
-    container_name: nemo-data-designer
-    ports:
-      - "8080:8080"
+  mcp-server-sdk:
+    build:
+      context: ./mcp_server_py
+      dockerfile: Dockerfile
+    container_name: mcp-server-sdk
     environment:
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NGC_API_KEY=${NGC_API_KEY}
-    runtime: nvidia
+      - NEMO_DATA_DESIGNER_URL=http://nemo-microservices-envoy-gateway-1:8000
+      - NEMO_BASE_URL=http://nemo-microservices-envoy-gateway-1:8000
+      - NIM_API_KEY=${NIM_API_KEY}
+      - LITE_LLM_KEY=${LITELLM_KEY}
+      - MCP_TRANSPORT=sse
+      - MCP_PORT=8002
+      - PYTHONPATH=/
+    ports:
+      - "8002:8002"
+    command: python /mcp_server_py/server_sdk.py
     volumes:
-      - ./data:/data
-      - ./jobs:/jobs
-      - ./config:/config
-    restart: unless-stopped
-    # command: >
-    #   bash -c "
-    #   echo 'NeMo Data Designer Service Starting...';
-    #   echo 'Note: Update docker-compose.yml with the correct image from NGC catalog';
-    #   echo 'Visit: https://catalog.ngc.nvidia.com/orgs/nvidia/teams/nemo';
-    #   python -m http.server 8080
-    #   "
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8080/" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+      - ./mcp_server_py:/mcp_server_py
+      - ./langgraph:/langgraph
+      - ./data-designer-output:/tmp/data-designer-output
+    networks:
+      - nemo-microservices_nmp
+
+  streamlit-ui:
+    build:
+      context: ./streamlit_app
+      dockerfile: Dockerfile
+    container_name: streamlit-ui
+    environment:
+      - MCP_SERVER_URL=http://mcp-server-sdk:8002/sse
+      - LANGGRAPH_SERVER_URL=http://langgraph-server:8003
+      - DATA_OUTPUT_DIR=/data-designer-output
+      - DUCKDB_PATH=/data/data_designer.duckdb
+      - LLM_BASE_URL=http://host.docker.internal:4000/v1
+      - LLM_MODEL=bedrock-claude-haiku
+      - LLM_API_KEY=${LITELLM_KEY}
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./streamlit_app:/app
+      - ./data-designer-output:/data-designer-output
+      - ./streamlit_data:/data
+    depends_on:
+      - mcp-server-sdk
+      - langgraph-server
+    networks:
+      - nemo-microservices_nmp
+
+  langgraph-server:
+    build:
+      context: ./langgraph
+      dockerfile: Dockerfile.server
+    container_name: langgraph-server
+    environment:
+      - MCP_SERVER_URL=http://mcp-server-sdk:8002/sse
+      - LLM_BASE_URL=http://host.docker.internal:4000/v1
+      - LLM_MODEL=bedrock-claude-haiku
+      - LLM_API_KEY=${LITELLM_KEY}
+    ports:
+      - "8003:8003"
+    depends_on:
+      - mcp-server-sdk
+    networks:
+      - nemo-microservices_nmp
+
+networks:
+  nemo-microservices_nmp:
+    external: true
+
+volumes:
+  pgdata: {}

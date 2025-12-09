@@ -1,8 +1,4 @@
 mcp
-pydantic>=2.0
+fastmcp
 httpx
-python-dotenv
-langgraph
-langchain
-fastapi
 uvicorn

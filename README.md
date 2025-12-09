@@ -1,65 +1,67 @@
-# NVIDIA NeMo Data Designer MCP Server
+# Synthetic Data Service (NeMo Data Designer + MCP Agent)
 
-This project provides a Python-based MCP (Model Context Protocol) server for the NVIDIA NeMo Data Designer service, allowing LLMs to guide synthetic data generation.
+This project implements an autonomous agentic workflow for synthetic data generation using NVIDIA NeMo Data Designer, powered by a custom Model Context Protocol (MCP) server.
 
-## Prerequisites
+## Quick Start
 
-- Python 3.10+
-- Docker and Docker Compose (for the NeMo Data Designer service)
-- NVIDIA GPU (recommended for NeMo Data Designer)
-- NGC API Key
+The project is managed via a `Makefile`.
 
-## Setup
-
-1.  **Start the NeMo Data Designer Service:**
-    ```bash
-    docker-compose up -d
-    ```
-    Ensure you have configured your `.env` file with your `NGC_API_KEY`.
-
-2.  **Install the MCP Server:**
-    ```bash
-    cd mcp_server_py
-    python3 -m venv venv
-    source venv/bin/activate
-    pip install -r requirements.txt
-    ```
-
-## Usage
-
-### Running the MCP Server
-You can run the MCP server directly:
+### 1. Configure Environment
+Create a `.env` file based on `.env.example`:
 ```bash
-# In mcp_server_py/
-python server.py
+cp .env.example .env
+# Edit .env with your keys (LITELLM_KEY, NIM_API_KEY, etc.)
 ```
 
-### Integration with Kiro (or other MCP clients)
-Add the following to your MCP settings (e.g., `~/.kiro/settings/mcp.json`):
-
-```json
-{
-  "mcpServers": {
-    "nemo-data-designer": {
-      "command": "python3",
-      "args": ["/path/to/synth-data-service/mcp_server_py/server.py"],
-      "env": {
-        "NEMO_DATA_DESIGNER_URL": "http://localhost:8080"
-      }
-    }
-  }
-}
-```
-
-## Development
-
-### Running Tests
+### 2. Run Local Environment
+Start the full stack (NeMo Data Designer, LiteLLM, MCP Server, Agent, Streamlit UI):
 ```bash
-pytest
+make up
 ```
 
-## Project Structure
+Access the services:
+- **Streamlit UI:** http://localhost:8501
+- **LiteLLM Proxy:** http://localhost:4000
+- **NeMo Data Designer:** http://localhost:8080 (if port mapped)
 
-- `mcp_server_py/`: Python MCP server implementation.
-- `tests/`: Pytest tests.
-- `docker-compose.yml`: Docker Compose setup for NeMo Data Designer.
+To stop services:
+```bash
+make down
+```
+
+### 3. Run Tests
+Execute unit and integration tests:
+```bash
+# Run all tests
+make test
+
+# Run only unit tests (offline)
+make test-unit
+
+# Run integration tests (requires 'make up')
+make test-integration
+```
+
+## Infrastructure Deployment (AWS EKS)
+
+This project supports GitOps deployment to AWS EKS via Terraform and FluxCD.
+
+```bash
+# Initialize and apply Terraform infrastructure
+make infra-init
+make infra-apply
+```
+
+For detailed deployment steps, please refer to [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md).
+
+## Architecture
+
+For a detailed explanation of the services and their interactions, see [ARCHITECTURE.md](ARCHITECTURE.md).
+
+---
+**Components:**
+- **NeMo Data Designer:** Synthetic data generation microservice.
+- **MCP Server:** Exposes NeMo capabilities as tools for agents.
+- **LangGraph Agent:** Autonomous reasoner that designs datasets.
+- **LiteLLM:** Universal LLM API proxy.
+- **Streamlit:** User interface.

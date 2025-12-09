@@ -7,7 +7,7 @@ def test_imports_and_models():
     print("Models imported successfully.")
     
     print("Importing server...")
-    from mcp_server_py.server import mcp
+    from mcp_server_py.server_sdk import mcp
     print("Server imported successfully.")
     
     # Test model instantiation

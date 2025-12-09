@@ -1,0 +1,30 @@
+general_settings:
+  require_api_key: true
+  master_key: sk-master-123
+  database_url: postgresql://litellm:litellm@postgres:5432/litellmdb
+model_list:
+  - model_name: gpt-5
+    litellm_params:
+      model: openai/gpt-5
+      api_key: os.environ/OPENAI_API_KEY
+  - model_name: gpt-4o
+    litellm_params:
+      model: openai/gpt-4o
+      api_key: os.environ/OPENAI_API_KEY
+  - model_name: bedrock-claude-haiku
+    litellm_params:
+      model: bedrock/anthropic.claude-3-haiku-20240307-v1:0
+      aws_region_name: us-east-1
+  - model_name: llama-3.1-8b-128k-local
+    litellm_params:
+      # We're talking to an OpenAI-compatible server (vLLM)
+      model: hosted_vllm/meta-llama/Meta-Llama-3.1-8B-Instruct
+      api_base: http://vllm:8000/v1
+      api_key: "EMPTY"
+      timeout: 900
+      max_output_tokens: 40000
+      context_window: 131072
+
+litellm_settings:
+  modify_params: true
+  drop_params: true
