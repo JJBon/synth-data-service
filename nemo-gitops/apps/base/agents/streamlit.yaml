@@ -50,4 +50,7 @@ spec:
   ports:
   - port: 8501
     targetPort: 8501
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: nlb
+    service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
   type: LoadBalancer # Expose to user
