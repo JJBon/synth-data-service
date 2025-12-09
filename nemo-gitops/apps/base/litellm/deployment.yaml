@@ -15,8 +15,8 @@ spec:
     spec:
       containers:
       - name: litellm
-        image: ghcr.io/berriai/litellm:main-stable
-        args: ["--config", "/app/config.yaml"]
+        image: ghcr.io/berriai/litellm-database:main-stable
+        args: ["--config", "/app/proxy_config.yaml"]
         ports:
         - containerPort: 4000
         env:
@@ -47,8 +47,20 @@ spec:
               key: AWS_REGION_NAME
         volumeMounts:
         - name: config-volume
-          mountPath: /app/config.yaml
+          mountPath: /app/proxy_config.yaml
           subPath: config.yaml
+        livenessProbe:
+          httpGet:
+            path: /health/liveliness
+            port: 4000
+          initialDelaySeconds: 120
+          periodSeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /health/readiness
+            port: 4000
+          initialDelaySeconds: 120
+          periodSeconds: 15
       volumes:
       - name: config-volume
         configMap:
@@ -73,10 +85,10 @@ metadata:
   namespace: default
 data:
   config.yaml: |
-    general_settings:
-      master_key: os.environ/LITELLM_MASTER_KEY
     model_list:
       - model_name: bedrock-claude-haiku
         litellm_params:
           model: bedrock/anthropic.claude-3-haiku-20240307-v1:0
-          aws_region_name: us-east-1
+          aws_region_name: os.environ/AWS_REGION_NAME
+          aws_access_key_id: os.environ/AWS_ACCESS_KEY_ID
+          aws_secret_access_key: os.environ/AWS_SECRET_ACCESS_KEY
