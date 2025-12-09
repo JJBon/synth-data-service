@@ -47,6 +47,14 @@ spec:
           value: "nvcr.io/nvidia/nemo-microservices/data-designer:25.11"
         - name: LOG_LEVEL
           value: "INFO"
+        volumeMounts:
+        - name: nemo-config
+          mountPath: /etc/nmp
+          readOnly: true
+      volumes:
+      - name: nemo-config
+        configMap:
+          name: nemo-config
 ---
 apiVersion: v1
 kind: Service
