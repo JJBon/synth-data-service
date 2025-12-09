@@ -15,8 +15,7 @@ spec:
     spec:
       containers:
       - name: mcp-server-sdk
-        # Placeholder image - user needs to build/push specific image
-        image: <YOUR_ECR_REPO>/mcp-server-sdk:latest
+        image: 668102661106.dkr.ecr.us-east-1.amazonaws.com/mcp-server-sdk:latest
         ports:
         - containerPort: 8002
         env:

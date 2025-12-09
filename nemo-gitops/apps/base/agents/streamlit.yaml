@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: streamlit-ui
-        image: <YOUR_ECR_REPO>/streamlit-ui:latest
+        image: 668102661106.dkr.ecr.us-east-1.amazonaws.com/streamlit-ui:latest
         ports:
         - containerPort: 8501
         env:

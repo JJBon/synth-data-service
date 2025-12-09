@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: langgraph-server
-        image: <YOUR_ECR_REPO>/langgraph-server:latest
+        image: 668102661106.dkr.ecr.us-east-1.amazonaws.com/langgraph-server:latest
         ports:
         - containerPort: 8003
         env:
