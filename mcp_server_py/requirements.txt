@@ -9,3 +9,4 @@ jinja2
 huggingface_hub
 pydantic
 aiohttp
+python-json-logger

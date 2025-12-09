@@ -72,8 +72,22 @@ module "eks" {
       instance_types = ["t3.medium"] # 2 vCPU, 4GB RAM
 
       min_size     = 1
-      max_size     = 2
-      desired_size = 1
+      max_size     = 3
+      desired_size = 2
+      
+      block_device_mappings = {
+        xvda = {
+          device_name = "/dev/xvda"
+          ebs = {
+            volume_size           = 100
+            volume_type           = "gp3"
+            iops                  = 3000
+            throughput            = 125
+            encrypted             = true
+            delete_on_termination = true
+          }
+        }
+      }
     }
 
     # GPU Workload: Scales from 0
@@ -85,8 +99,8 @@ module "eks" {
 
       # "Resourceful": Keep at 0 until needed
       min_size     = 0
-      max_size     = 1
-      desired_size = 0
+      max_size     = 2
+      desired_size = 1
 
       taints = {
         dedicated = {
@@ -100,6 +114,31 @@ module "eks" {
       labels = {
         "accelerator" = "gpu"
       }
+
+      block_device_mappings = {
+        xvda = {
+          device_name = "/dev/xvda"
+          ebs = {
+            volume_size           = 150
+            volume_type           = "gp3"
+            iops                  = 3000
+            throughput            = 125
+            encrypted             = true
+            delete_on_termination = true
+          }
+        }
+      }
+    }
+  }
+
+  node_security_group_additional_rules = {
+    ingress_allow_access_from_anywhere = {
+      type        = "ingress"
+      protocol    = "tcp"
+      from_port   = 30000
+      to_port     = 32767
+      cidr_blocks = ["0.0.0.0/0"]
+      description = "Allow NodePort access from anywhere (required for NLB)"
     }
   }
 
