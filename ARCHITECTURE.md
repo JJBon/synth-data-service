@@ -9,17 +9,17 @@ graph TD
     User[User] -->|Interacts| UI[Streamlit UI]
     UI -->|Invokes| Agent[LangGraph Agent]
     
-    subgraph "Agentic Layer"
+    subgraph Agentic_Layer [Agentic Layer]
         Agent -->|Tools| MCP[MCP Server SDK]
         Agent -->|Reasoning| LiteLLM[LiteLLM Proxy]
     end
     
-    subgraph "Core Services"
+    subgraph Core_Services [Core Services]
         MCP -->|API Calls| NeMo[NeMo Data Designer]
         NeMo -->|Generation| LiteLLM
     end
     
-    subgraph "External Models"
+    subgraph External_Models [External Models]
         LiteLLM -->|API| Bedrock[AWS Bedrock]
         LiteLLM -->|API| OpenAI[OpenAI]
         LiteLLM -->|API| NIM[NVIDIA NIM]
