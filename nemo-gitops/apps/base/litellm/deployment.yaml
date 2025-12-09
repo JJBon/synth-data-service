@@ -16,6 +16,7 @@ spec:
       containers:
       - name: litellm
         image: ghcr.io/berriai/litellm:main-stable
+        imagePullPolicy: Always
         args: ["--config", "/app/proxy_config.yaml"]
         ports:
         - containerPort: 4000
@@ -25,6 +26,11 @@ spec:
             secretKeyRef:
               name: litellm-secrets
               key: LITELLM_MASTER_KEY
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: litellm-secrets
+              key: DATABASE_URL
         - name: AWS_ACCESS_KEY_ID
           valueFrom:
             secretKeyRef:
@@ -44,6 +50,25 @@ spec:
         - name: config-volume
           mountPath: /app/proxy_config.yaml
           subPath: config.yaml
+          readOnly: true
+        livenessProbe:
+          httpGet:
+            path: /health/liveliness
+            port: 4000
+          initialDelaySeconds: 120
+          periodSeconds: 15
+          successThreshold: 1
+          failureThreshold: 3
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health/readiness
+            port: 4000
+          initialDelaySeconds: 120
+          periodSeconds: 15
+          successThreshold: 1
+          failureThreshold: 3
+          timeoutSeconds: 10
       volumes:
       - name: config-volume
         configMap:
