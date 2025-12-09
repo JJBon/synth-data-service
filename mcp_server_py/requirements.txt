@@ -5,3 +5,4 @@ uvicorn
 nemo-microservices
 pandas
 pyarrow
+jinja2
