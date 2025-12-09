@@ -6,3 +6,6 @@ nemo-microservices
 pandas
 pyarrow
 jinja2
+huggingface_hub
+pydantic
+aiohttp
