@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-designer
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: data-designer
+  template:
+    metadata:
+      labels:
+        app: data-designer
+    spec:
+      tolerations:
+      - key: "nvidia.com/gpu"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
+      containers:
+      - name: data-designer
+        image: nvcr.io/nvidia/nemo-microservices/data-designer:25.11
+        ports:
+        - containerPort: 8000
+        env:
+        - name: LITELLM_KEY
+          valueFrom:
+            secretKeyRef:
+              name: nemo-secrets
+              key: LITELLM_KEY
+        - name: NIM_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: nemo-secrets
+              key: NIM_API_KEY
+        - name: NEMO_MICROSERVICES_DATA_DESIGNER_JOB_IMAGE
+          value: "nvcr.io/nvidia/nemo-microservices/data-designer:25.11"
+        - name: LOG_LEVEL
+          value: "INFO"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: data-designer
+  namespace: default
+spec:
+  selector:
+    app: data-designer
+  ports:
+  - port: 8000
+    targetPort: 8000

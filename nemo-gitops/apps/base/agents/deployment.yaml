@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-server-sdk
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mcp-server-sdk
+  template:
+    metadata:
+      labels:
+        app: mcp-server-sdk
+    spec:
+      containers:
+      - name: mcp-server-sdk
+        # Placeholder image - user needs to build/push specific image
+        image: <YOUR_ECR_REPO>/mcp-server-sdk:latest
+        ports:
+        - containerPort: 8002
+        env:
+        - name: NEMO_DATA_DESIGNER_URL
+          value: "http://data-designer:8000"
+        - name: MCP_PORT
+          value: "8002"
+        - name: MCP_TRANSPORT
+          value: "sse"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-server-sdk
+  namespace: default
+spec:
+  selector:
+    app: mcp-server-sdk
+  ports:
+  - port: 8002
+    targetPort: 8002
