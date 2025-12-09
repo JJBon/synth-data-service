@@ -29,6 +29,21 @@ spec:
             secretKeyRef:
               name: litellm-secrets
               key: LITELLM_MASTER_KEY
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: AWS_ACCESS_KEY_ID
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: AWS_SECRET_ACCESS_KEY
+        - name: AWS_REGION_NAME
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: AWS_REGION_NAME
         volumeMounts:
         - name: config-volume
           mountPath: /app/config.yaml
