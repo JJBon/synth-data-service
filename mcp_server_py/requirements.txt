@@ -2,3 +2,6 @@ mcp
 fastmcp
 httpx
 uvicorn
+nemo-microservices
+pandas
+pyarrow
