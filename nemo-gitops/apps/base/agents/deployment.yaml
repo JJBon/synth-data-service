@@ -15,7 +15,8 @@ spec:
     spec:
       containers:
       - name: mcp-server-sdk
-        image: 668102661106.dkr.ecr.us-east-1.amazonaws.com/mcp-server-sdk:latest
+        image: 668102661106.dkr.ecr.us-east-1.amazonaws.com/mcp-server-sdk:sdk-fixed
+        imagePullPolicy: Always
         ports:
         - containerPort: 8002
         env:
