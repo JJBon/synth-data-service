@@ -71,42 +71,54 @@ db = get_db()
 # Auto-import watcher: Monitors shared volume for new CSVs and imports them
 @st.fragment(run_every=3)
 def file_watcher():
-    # Polls shared folder for new CSV files and imports into DuckDB
+    # Polls shared folder OR S3 for new CSV files and imports into DuckDB
     import time
     try:
-        data_dir = os.environ.get("DATA_OUTPUT_DIR", "/data-designer-output")
-        files = list(Path(data_dir).glob("*.csv"))
-        
-        if not files:
-            return
+        s3_bucket = os.environ.get("S3_ARTIFACTS_BUCKET")
+        latest_file_path = None
+        mtime = 0.0
+        filename_stem = ""
 
-        # Find latest file
-        latest_file = max(files, key=lambda f: f.stat().st_mtime)
-        mtime = latest_file.stat().st_mtime
-        
+        if s3_bucket:
+             import boto3
+             s3 = boto3.client("s3")
+             response = s3.list_objects_v2(Bucket=s3_bucket, Prefix="data/")
+             if 'Contents' in response:
+                 latest_obj = max(response['Contents'], key=lambda x: x['LastModified'])
+                 mtime = latest_obj['LastModified'].timestamp()
+                 latest_file_path = f"s3://{s3_bucket}/{latest_obj['Key']}"
+                 filename_stem = os.path.splitext(os.path.basename(latest_obj['Key']))[0]
+        else:
+             data_dir = os.environ.get("DATA_OUTPUT_DIR", "/data-designer-output")
+             files = list(Path(data_dir).glob("*.csv"))
+             if files:
+                 latest_obj = max(files, key=lambda f: f.stat().st_mtime)
+                 mtime = latest_obj.stat().st_mtime
+                 latest_file_path = str(latest_obj)
+                 filename_stem = latest_obj.stem
+
+        if not latest_file_path:
+            return
+            
         # Check against session state
         if "last_import_mtime" not in st.session_state:
             st.session_state.last_import_mtime = time.time()
 
-            
         # If new file detected (allow small buffer)
         if mtime > st.session_state.last_import_mtime:
             # Import it!
-            job_id = latest_file.stem
-            table_name = job_id.replace("-", "_")
+            table_name = filename_stem.replace("-", "_")
             
             current_db = get_db()
             current_db.clear_database() # Clean slate
-            current_db.save_from_csv(table_name, str(latest_file))
+            current_db.save_from_csv(table_name, latest_file_path)
             
-            # Update state
             st.session_state.last_import_mtime = mtime
             st.session_state.selected_table = table_name
             st.rerun()
             
     except Exception as e:
-        pass # Silently fail on transient errors
-
+        print(f"Watcher error: {e}")
 # Run the watcher in the background
 file_watcher()
 

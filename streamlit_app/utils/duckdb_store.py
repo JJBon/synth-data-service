@@ -1,4 +1,5 @@
 """DuckDB store for managing generated datasets."""
+import os
 import duckdb
 import pandas as pd
 from pathlib import Path
@@ -11,6 +12,24 @@ class DuckDBStore:
     def __init__(self, db_path: str = ":memory:"):
         self.db_path = db_path
         self.conn = duckdb.connect(db_path)
+        
+        # Configure S3 if credentials present
+        if os.environ.get("AWS_ACCESS_KEY_ID"):
+            try:
+                self.conn.sql("INSTALL httpfs; LOAD httpfs;")
+                key = os.environ.get("AWS_ACCESS_KEY_ID")
+                secret = os.environ.get("AWS_SECRET_ACCESS_KEY")
+                region = os.environ.get("AWS_REGION", "us-east-1")
+                token = os.environ.get("AWS_SESSION_TOKEN", "")
+                
+                secret_sql = f"CREATE SECRET (TYPE S3, KEY_ID '{key}', SECRET '{secret}', REGION '{region}'"
+                if token:
+                    secret_sql += f", SESSION_TOKEN '{token}'"
+                secret_sql += ");"
+                
+                self.conn.sql(secret_sql)
+            except Exception as e:
+                print(f"Warning: S3 setup failed: {e}")
     
     def save_dataframe(self, table_name: str, df: pd.DataFrame) -> None:
         """Save a DataFrame as a table in DuckDB."""

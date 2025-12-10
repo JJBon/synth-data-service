@@ -23,8 +23,11 @@
 - [x] **Fetch and Display Results**:
     - [x] Create `import_results` MCP tool (`server_sdk.py`) to fetch/stage CSV files.
     - [x] Switch UI to use In-Memory DuckDB for fast, stateless data visualization.
-    - [x] Implement file watcher in Streamlit to auto-import new CSVs from shared volume.
-    - [x] Fix file locking and concurrency issues via architecture change (Artifacts vs Memory).
+    - [x] Migrate Payload Storage to S3 (Option 1) for stateless scalability.
+        - [x] Provision S3 Bucket via Terraform (`nemo-infrastructure`).
+        - [x] Update `mcp-server-sdk` to upload artifacts to S3 (`boto3`).
+        - [x] Update `streamlit-ui` to poll S3 and load via DuckDB `httpfs`.
+    - [x] Configure Local Dev environment with AWS Credentials for S3 access.
 - [ ] **Data Export**:
     - [x] Add CSV/Parquet download buttons to Streamlit UI.
 - Results available via NeMo API download endpoints

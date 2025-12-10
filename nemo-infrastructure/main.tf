@@ -63,6 +63,7 @@ module "eks" {
     iam_role_additional_policies = {
       AmazonEBSCSIDriverPolicy = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
       AmazonEFSCSIDriverPolicy = "arn:aws:iam::aws:policy/service-role/AmazonEFSCSIDriverPolicy"
+      AmazonS3FullAccess       = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
     }
   }
 
@@ -275,4 +276,32 @@ output "ecr_repository_urls" {
 output "efs_file_system_id" {
   description = "EFS file system ID for RWX storage"
   value       = aws_efs_file_system.nemo_jobs.id
+}
+
+################################################################################
+# S3 Artifacts Bucket
+################################################################################
+
+data "aws_caller_identity" "current" {}
+
+module "s3_bucket" {
+  source  = "terraform-aws-modules/s3-bucket/aws"
+  version = "3.15.1"
+
+  bucket = "nemo-data-designer-artifacts-${data.aws_caller_identity.current.account_id}"
+  acl    = "private"
+
+  control_object_ownership = true
+  object_ownership         = "ObjectWriter"
+
+  versioning = {
+    enabled = true
+  }
+  
+  tags = local.tags
+}
+
+output "s3_bucket_name" {
+  description = "Name of the S3 bucket for artifacts"
+  value       = module.s3_bucket.s3_bucket_id
 }

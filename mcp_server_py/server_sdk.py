@@ -691,6 +691,26 @@ def import_results(job_id: str) -> dict:
                     "download_url": download_url
                 }
         
+        # Upload to S3 if configured
+        s3_bucket = os.environ.get("S3_ARTIFACTS_BUCKET")
+        if s3_bucket:
+            try:
+                import boto3
+                s3_client = boto3.client("s3")
+                key = f"data/{job_id}.csv"
+                logging.info(f"Uploading {csv_path} to s3://{s3_bucket}/{key}")
+                s3_client.upload_file(csv_path, s3_bucket, key)
+                return {
+                    "status": "success",
+                    "job_id": job_id,
+                    "source": "s3",
+                    "s3_uri": f"s3://{s3_bucket}/{key}",
+                    "message": f"Results uploaded to s3://{s3_bucket}/{key}"
+                }
+            except Exception as e:
+                logging.error(f"S3 upload failed: {e}")
+                return {"error": f"Failed to upload to S3: {str(e)}"}
+
         return {
             "status": "success",
             "job_id": job_id,

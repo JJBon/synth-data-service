@@ -30,17 +30,15 @@ spec:
           value: "http://litellm:4000/v1"
         - name: LLM_MODEL
           value: "bedrock-claude-haiku"
+        - name: S3_ARTIFACTS_BUCKET
+          value: "nemo-data-designer-artifacts-668102661106"
+        - name: AWS_REGION
+          value: "us-east-1"
         envFrom:
         - secretRef:
             name: app-secrets
         
-        volumeMounts:
-        - name: output-volume
-          mountPath: /data-designer-output
-      volumes:
-      - name: output-volume
-        persistentVolumeClaim:
-          claimName: agent-ui-shared-storage
+
 
 ---
 apiVersion: v1
