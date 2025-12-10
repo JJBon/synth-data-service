@@ -71,27 +71,30 @@ if "db" not in st.session_state:
 db = st.session_state.db
 
 # Auto-import watcher: Monitors shared volume for new CSVs and imports them
-@st.fragment(run_every=3)
+# File Watcher (Poll S3 for new files)
+# Polling interval to check for new files (in seconds)
+POLL_INTERVAL = 2
+
+@st.fragment
 def file_watcher():
-    # Polls S3 for new CSV files specifically for THIS SESSION
-    import time
+    if "last_import_mtime" not in st.session_state:
+        st.session_state.last_import_mtime = 0.0
+        
+    # S3 polling logic
+    s3_bucket = os.environ.get("S3_ARTIFACTS_BUCKET")
+    # Use the session-specific folder path
+    s3_prefix = f"data/{session_id}/"
+    print(f"DEBUG: Watcher polling S3 prefix: {s3_prefix} (Bucket: {s3_bucket})", flush=True)
+
+    latest_file_path = None
+    mtime = 0.0
+    filename_stem = ""
+
     try:
-        s3_bucket = os.environ.get("S3_ARTIFACTS_BUCKET")
-        latest_file_path = None
-        mtime = 0.0
-        filename_stem = ""
-        
-        # Get active session ID from chat component state if available
-        # Note: Chat component initializes it
-        session_id = st.session_state.get("session_id")
-        
-        if s3_bucket and session_id:
+        if s3_bucket:
              import boto3
              s3 = boto3.client("s3")
-             # Poll ONLY our session's folder
-             prefix = f"data/{session_id}/"
-             print(f"DEBUG: Watcher polling S3 prefix: {prefix} (Bucket: {s3_bucket})", flush=True)
-             response = s3.list_objects_v2(Bucket=s3_bucket, Prefix=prefix)
+             response = s3.list_objects_v2(Bucket=s3_bucket, Prefix=s3_prefix)
              if 'Contents' in response:
                  latest_obj = max(response['Contents'], key=lambda x: x['LastModified'])
                  mtime = latest_obj['LastModified'].timestamp()
