@@ -26,8 +26,13 @@ build:
 .PHONY: up
 up: up-nemo up-local
 
+.PHONY: ngc-login
+ngc-login:
+	@echo "Logging into NGC registry..."
+	@echo $(NGC_API_KEY) | docker login nvcr.io -u '$$oauthtoken' --password-stdin
+
 .PHONY: up-nemo
-up-nemo:
+up-nemo: ngc-login
 	@echo "Starting NeMo services..."
 	docker compose -f $(NEMO_COMPOSE_FILE) --profile data-designer up -d
 	@echo "Waiting for NeMo network to be established..."
@@ -135,20 +140,9 @@ eks-storage:
 eks-efs-sc:
 	@echo "Creating EFS StorageClass for RWX storage..."
 	$(eval EFS_ID := $(shell cd $(INFRA_DIR) && terraform output -raw efs_file_system_id 2>/dev/null))
-	kubectl apply -f - <<EOF
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: efs-sc
-provisioner: efs.csi.aws.com
-parameters:
-  provisioningMode: efs-ap
-  fileSystemId: $(EFS_ID)
-  directoryPerms: "700"
-reclaimPolicy: Delete
-volumeBindingMode: Immediate
-EOF
+	@echo "apiVersion: storage.k8s.io/v1\nkind: StorageClass\nmetadata:\n  name: efs-sc\nprovisioner: efs.csi.aws.com\nparameters:\n  provisioningMode: efs-ap\n  fileSystemId: $(EFS_ID)\n  directoryPerms: \"700\"\nreclaimPolicy: Delete\nvolumeBindingMode: Immediate" | kubectl apply -f -
 	@echo "✅ EFS StorageClass 'efs-sc' created with EFS ID: $(EFS_ID)"
+
 
 .PHONY: eks-deploy
 eks-deploy: eks-secrets eks-storage
@@ -234,7 +228,7 @@ docker-build-eks:
 	@echo "Building images for EKS..."
 	docker build -t $(ECR_REGISTRY)/mcp-server-sdk:latest ./mcp_server_py
 	docker build -t $(ECR_REGISTRY)/streamlit-ui:latest ./streamlit_app
-	docker build -t $(ECR_REGISTRY)/langgraph-server:latest ./langgraph
+	docker build -t $(ECR_REGISTRY)/langgraph-server:latest -f ./langgraph/Dockerfile.server ./langgraph
 
 .PHONY: docker-push-eks
 docker-push-eks: ecr-login docker-build-eks

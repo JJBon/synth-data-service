@@ -20,8 +20,13 @@
 | NeMo PostgreSQL | ✅ Running |
 
 ### ✅ Job Execution Working
-- Jobs successfully submit and complete
-- EFS StorageClass (`efs-sc`) provides RWX storage for job pods
+- [x] **Fetch and Display Results**:
+    - [x] Create `import_results` MCP tool (`server_sdk.py`) to fetch/stage CSV files.
+    - [x] Switch UI to use In-Memory DuckDB for fast, stateless data visualization.
+    - [x] Implement file watcher in Streamlit to auto-import new CSVs from shared volume.
+    - [x] Fix file locking and concurrency issues via architecture change (Artifacts vs Memory).
+- [ ] **Data Export**:
+    - [x] Add CSV/Parquet download buttons to Streamlit UI.
 - Results available via NeMo API download endpoints
 
 ### Access URLs (via port-forward)

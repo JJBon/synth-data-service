@@ -25,8 +25,7 @@ spec:
           value: "http://langgraph-server:8003"
         - name: DATA_OUTPUT_DIR
           value: "/data-designer-output"
-        - name: DUCKDB_PATH
-          value: "/data/data_designer.duckdb"
+
         - name: LLM_BASE_URL
           value: "http://litellm:4000/v1"
         - name: LLM_MODEL
@@ -36,15 +35,12 @@ spec:
             name: app-secrets
         
         volumeMounts:
-        - name: data-volume
-          mountPath: /data
         - name: output-volume
           mountPath: /data-designer-output
       volumes:
-      - name: data-volume
-        emptyDir: {}
       - name: output-volume
-        emptyDir: {}
+        persistentVolumeClaim:
+          claimName: agent-ui-shared-storage
 
 ---
 apiVersion: v1
