@@ -1,0 +1,16 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: efs-sc
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "false"
+provisioner: efs.csi.aws.com
+parameters:
+  provisioningMode: efs-ap
+  # EFS File System ID - managed via Terraform output
+  # This should be updated after `terraform apply` or use external-secrets
+  fileSystemId: fs-0041789c77c7c8e35
+  directoryPerms: "700"
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+allowVolumeExpansion: true

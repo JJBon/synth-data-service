@@ -74,8 +74,8 @@ module "eks" {
       instance_types = ["t3.medium"] # 2 vCPU, 4GB RAM
 
       min_size     = 1
-      max_size     = 3
-      desired_size = 2
+      max_size     = 5
+      desired_size = 3
       
       block_device_mappings = {
         xvda = {
@@ -181,9 +181,8 @@ module "eks_blueprints_addons" {
   # Enable Load Balancer Controller for Ingress
   enable_aws_load_balancer_controller = true
   
-  # Enable Karpenter for smarter scaling (optional, but good for scaling from 0)
-  # Keeping it simple for now with standard ASG, user can manually scale or use Cluster Autoscaler
-  # enable_karpenter = true 
+  # Enable Karpenter for intelligent auto-scaling
+  enable_karpenter = true 
 
   tags = local.tags
 }

@@ -1,0 +1,106 @@
+# Karpenter Provisioner for intelligent auto-scaling
+# This defines how Karpenter should provision new nodes
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
+metadata:
+  name: default
+spec:
+  template:
+    spec:
+      nodeClassRef:
+        name: default
+      requirements:
+        - key: "karpenter.sh/capacity-type"
+          operator: In
+          values: ["on-demand"]
+        - key: "node.kubernetes.io/instance-type"
+          operator: In
+          values:
+            - t3.medium
+            - t3.large
+            - t3.xlarge
+            - m5.large
+            - m5.xlarge
+        - key: "kubernetes.io/arch"
+          operator: In
+          values: ["amd64"]
+  limits:
+    cpu: 100
+    memory: 200Gi
+  disruption:
+    consolidationPolicy: WhenEmpty
+    consolidateAfter: 30s
+---
+apiVersion: karpenter.k8s.aws/v1beta1
+kind: EC2NodeClass
+metadata:
+  name: default
+spec:
+  amiFamily: AL2
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: nemo-data-cluster
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: nemo-data-cluster
+  role: "nemo-data-cluster-karpenter-node"
+  tags:
+    Project: nemo-microservices
+    Environment: dev
+---
+# GPU NodePool for GPU workloads (scales from 0)
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
+metadata:
+  name: gpu
+spec:
+  template:
+    spec:
+      nodeClassRef:
+        name: gpu
+      requirements:
+        - key: "karpenter.sh/capacity-type"
+          operator: In
+          values: ["on-demand"]
+        - key: "node.kubernetes.io/instance-type"
+          operator: In
+          values:
+            - g5.xlarge
+            - g5.2xlarge
+        - key: "kubernetes.io/arch"
+          operator: In
+          values: ["amd64"]
+      taints:
+        - key: nvidia.com/gpu
+          value: "true"
+          effect: NoSchedule
+  limits:
+    cpu: 32
+    memory: 128Gi
+  disruption:
+    consolidationPolicy: WhenEmpty
+    consolidateAfter: 5m
+---
+apiVersion: karpenter.k8s.aws/v1beta1
+kind: EC2NodeClass
+metadata:
+  name: gpu
+spec:
+  amiFamily: AL2
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: nemo-data-cluster
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: nemo-data-cluster
+  role: "nemo-data-cluster-karpenter-node"
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 150Gi
+        volumeType: gp3
+        encrypted: true
+  tags:
+    Project: nemo-microservices
+    Environment: dev
+    accelerator: gpu

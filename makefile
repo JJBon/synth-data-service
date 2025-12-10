@@ -94,7 +94,7 @@ infra-output:
 .PHONY: eks-configure
 eks-configure:
 	@echo "Configuring kubectl for EKS cluster..."
-	aws eks update-kubeconfig --region $(AWS_REGION) --name synth-data-eks
+	aws eks update-kubeconfig --region $(AWS_REGION) --name nemo-data-cluster
 
 .PHONY: eks-secrets
 eks-secrets:
@@ -147,9 +147,11 @@ eks-efs-sc:
 .PHONY: eks-deploy
 eks-deploy: eks-secrets eks-storage
 	@echo "Deploying applications to EKS..."
+	kubectl apply -k $(GITOPS_DIR)/apps/base/storage/
 	kubectl apply -k $(GITOPS_DIR)/apps/base/litellm/
 	kubectl apply -k $(GITOPS_DIR)/apps/base/agents/
 	kubectl apply -k $(GITOPS_DIR)/apps/base/nemo/
+	-kubectl apply -k $(GITOPS_DIR)/apps/base/karpenter/ 2>/dev/null || echo "Karpenter CRDs not yet installed, skipping provisioners"
 
 .PHONY: eks-status
 eks-status:

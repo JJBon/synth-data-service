@@ -21,9 +21,9 @@ spec:
         - containerPort: 8002
         env:
         - name: NEMO_BASE_URL
-          value: "http://data-designer:8000"
+          value: "http://nemo-data-designer:8000"
         - name: NEMO_DATA_DESIGNER_URL
-          value: "http://data-designer:8000"
+          value: "http://nemo-data-designer:8000"
         - name: MCP_PORT
           value: "8002"
         - name: MCP_TRANSPORT

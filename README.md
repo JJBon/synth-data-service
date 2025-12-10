@@ -1,67 +1,108 @@
-# Synthetic Data Service (NeMo Data Designer + MCP Agent)
+# Synthetic Data Service
 
-This project implements an autonomous agentic workflow for synthetic data generation using NVIDIA NeMo Data Designer, powered by a custom Model Context Protocol (MCP) server.
+An autonomous agentic workflow for synthetic data generation using NVIDIA NeMo Data Designer, powered by a custom Model Context Protocol (MCP) server.
 
-## Quick Start
-
-The project is managed via a `Makefile`.
+## Quick Start (Local)
 
 ### 1. Configure Environment
-Create a `.env` file based on `.env.example`:
 ```bash
 cp .env.example .env
 # Edit .env with your keys (LITELLM_KEY, NIM_API_KEY, etc.)
 ```
 
-### 2. Run Local Environment
-Start the full stack (NeMo Data Designer, LiteLLM, MCP Server, Agent, Streamlit UI):
+### 2. Run Stack
 ```bash
 make up
 ```
 
-Access the services:
-- **Streamlit UI:** http://localhost:8501
-- **LiteLLM Proxy:** http://localhost:4000
-- **NeMo Data Designer:** http://localhost:8080 (if port mapped)
+**Access:**
+- Streamlit UI: http://localhost:8501
+- LiteLLM Proxy: http://localhost:4000
 
-To stop services:
 ```bash
-make down
+make down  # Stop services
 ```
 
-### 3. Run Tests
-Execute unit and integration tests:
+---
+
+## Deployment Guide (AWS EKS)
+
+### Prerequisites
+- AWS CLI configured with appropriate permissions
+- Terraform, Docker, kubectl installed
+
+### Step 1: Provision Infrastructure
 ```bash
-# Run all tests
-make test
-
-# Run only unit tests (offline)
-make test-unit
-
-# Run integration tests (requires 'make up')
-make test-integration
-```
-
-## Infrastructure Deployment (AWS EKS)
-
-This project supports GitOps deployment to AWS EKS via Terraform and FluxCD.
-
-```bash
-# Initialize and apply Terraform infrastructure
 make infra-init
 make infra-apply
 ```
+Note the output `ecr_repository_urls` for the next step.
 
-For detailed deployment steps, please refer to [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md).
+### Step 2: Build & Push Images
+```bash
+# Login to ECR
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com
+
+# Build and push
+make ecr-push
+```
+
+### Step 3: Configure kubectl
+```bash
+make eks-configure
+```
+
+### Step 4: Create Secrets
+```bash
+make eks-secrets
+```
+
+### Step 5: Deploy Applications
+```bash
+make eks-deploy
+```
+
+### Step 6: Verify
+```bash
+make eks-status
+```
+
+**Access Streamlit UI:**
+```bash
+kubectl get svc streamlit-ui -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+# Opens at port 8501
+```
+
+---
 
 ## Architecture
 
-For a detailed explanation of the services and their interactions, see [ARCHITECTURE.md](ARCHITECTURE.md).
+See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed component descriptions.
+
+```
+User → Streamlit UI → LangGraph Agent → MCP Server → NeMo Data Designer
+                              ↓
+                         LiteLLM Proxy → AWS Bedrock / OpenAI / NIM
+```
+
+**Components:**
+| Component | Description |
+|-----------|-------------|
+| **NeMo Data Designer** | NVIDIA synthetic data generation microservice |
+| **MCP Server** | Exposes NeMo capabilities as tools for agents |
+| **LangGraph Agent** | Autonomous reasoner that designs datasets |
+| **LiteLLM** | Universal LLM API proxy |
+| **Streamlit** | User interface |
 
 ---
-**Components:**
-- **NeMo Data Designer:** Synthetic data generation microservice.
-- **MCP Server:** Exposes NeMo capabilities as tools for agents.
-- **LangGraph Agent:** Autonomous reasoner that designs datasets.
-- **LiteLLM:** Universal LLM API proxy.
-- **Streamlit:** User interface.
+
+## Makefile Commands
+
+| Command | Description |
+|---------|-------------|
+| `make up` | Start local Docker stack |
+| `make down` | Stop local stack |
+| `make test` | Run all tests |
+| `make infra-apply` | Provision AWS infrastructure |
+| `make eks-deploy` | Deploy to EKS |
+| `make eks-status` | Check pod/service status |

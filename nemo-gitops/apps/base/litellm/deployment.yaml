@@ -46,6 +46,8 @@ spec:
             secretKeyRef:
               name: app-secrets
               key: AWS_REGION_NAME
+        - name: LITELLM_ALLOW_REQUEST_WITHOUT_KEY
+          value: "true"
         volumeMounts:
         - name: config-volume
           mountPath: /app/proxy_config.yaml
