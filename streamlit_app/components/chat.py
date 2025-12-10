@@ -80,20 +80,22 @@ def render(on_job_complete=None):
             st.session_state.awaiting_confirmation = False
             st.rerun()
     
-    # Display chat history
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-    
-    # Display agent activity
-    if st.session_state.agent_activity:
-        with st.expander("🔧 Agent Activity", expanded=False):
-            for activity in st.session_state.agent_activity[-30:]:
-                st.text(activity)
-    
-    # Show hint if awaiting confirmation
-    if st.session_state.awaiting_confirmation:
-        st.info("👆 The agent is waiting for your confirmation. Reply 'yes' to proceed or describe changes.")
+    # Scrollable chat history container
+    with st.container(height=700):
+        # Display chat history
+        for message in st.session_state.messages:
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
+        
+        # Display agent activity
+        if st.session_state.agent_activity:
+            with st.expander("🔧 Agent Activity", expanded=False):
+                for activity in st.session_state.agent_activity[-30:]:
+                    st.text(activity)
+        
+        # Show hint if awaiting confirmation
+        if st.session_state.awaiting_confirmation:
+            st.info("👆 The agent is waiting for your confirmation. Reply 'yes' to proceed or describe changes.")
     
     # Chat input
     if prompt := st.chat_input("Describe the data you want to generate..."):
