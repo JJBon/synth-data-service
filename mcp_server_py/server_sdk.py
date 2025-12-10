@@ -725,8 +725,72 @@ def import_results(job_id: str, session_id: str = None) -> dict:
                                 logging.info(f"Decompressed ZIP ({file_list[0]}) size: {len(content)} bytes")
                     except Exception as e:
                          logging.error(f"Failed to decompress ZIP content: {e}")
+
+                # Check for TAR format (often result of .tar.gz)
+                try:
+                    import tarfile
+                    import io
+                    # Use a copy of content for tarfile opening in case previous checks consumed it? 
+                    # Actually content is bytes, so io.BytesIO(content) creates a new stream each time. Safe.
+                    
+                    # We need to detect if it is actually a tar file
+                    is_tar = False
+                    if len(content) > 260: # Magic number check usually at offset 257
+                         if content[257:262] == b"ustar":
+                              is_tar = True
+                    
+                    # Or just try opening it
+                    if not is_tar:
+                         # Heuristic: GZIP decompressed content is often a tar
+                         try:
+                              with tarfile.open(fileobj=io.BytesIO(content)) as t:
+                                   is_tar = True
+                         except:
+                              pass
+
+                    if is_tar:
+                        with tarfile.open(fileobj=io.BytesIO(content)) as t:
+                            logging.info("Detected TAR format, extracting...")
+                            members = t.getmembers()
+                            
+                            # Valid extensions we can handle
+                            valid_exts = ('.parquet', '.csv')
+                            target_member = next((m for m in members if m.name.endswith(valid_exts)), None)
+                            
+                            if not target_member and members:
+                                 # Fallback: assume first file is relevant
+                                 target_member = members[0]
+                            
+                            if target_member:
+                                f = t.extractfile(target_member)
+                                if f:
+                                    extracted_bytes = f.read()
+                                    logging.info(f"Extracted file ({target_member.name}) size: {len(extracted_bytes)} bytes")
+                                    
+                                    if target_member.name.endswith('.parquet'):
+                                         logging.info("Converting Parquet to CSV...")
+                                         import pandas as pd
+                                         import io
+                                         df = pd.read_parquet(io.BytesIO(extracted_bytes))
+                                         # Save as CSV to the expected csv_path
+                                         os.makedirs(output_path, exist_ok=True)
+                                         df.to_csv(csv_path, index=False)
+                                         logging.info(f"Converted to CSV at {csv_path}")
+                                         # Stop here, we wrote the file
+                                         return {
+                                             "status": "success", 
+                                             "job_id": job_id, 
+                                             "message": "Converted Parquet to CSV and uploaded"
+                                         }
+                                    else:
+                                         # Assume CSV or text
+                                         content = extracted_bytes
+                except tarfile.TarError:
+                    pass
+                except Exception as e:
+                    logging.error(f"Error extracting TAR: {e}")
                 
-                # Save locally for shared access
+                # Save locally (if not already handled by parquet conversion)
                 os.makedirs(output_path, exist_ok=True)
                 with open(csv_path, "wb") as f:
                     f.write(content)
