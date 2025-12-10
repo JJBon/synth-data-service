@@ -562,6 +562,18 @@ def finalize_job(job_id: str) -> dict:
         artifacts_path = f"{output_path}/artifacts-{job_id}"
         job_result.download_artifacts(output_path=output_path, artifacts_folder_name=f"artifacts-{job_id}")
         
+        # Upload to S3 if configured
+        s3_bucket = os.environ.get("S3_ARTIFACTS_BUCKET")
+        if s3_bucket:
+             try:
+                 import boto3
+                 s3_client = boto3.client("s3")
+                 key = f"data/{job_id}.csv"
+                 logging.info(f"Uploading {dataset_csv_path} to s3://{s3_bucket}/{key}")
+                 s3_client.upload_file(dataset_csv_path, s3_bucket, key)
+             except Exception as e:
+                 logging.error(f"S3 upload in finalize_job failed: {e}")
+
         # NeMo download URLs
         nemo_base_url = os.environ.get("NEMO_BASE_URL", "http://localhost:8080")
         
