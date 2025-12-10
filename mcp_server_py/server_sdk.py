@@ -707,9 +707,24 @@ def import_results(job_id: str, session_id: str = None) -> dict:
                     try:
                         import gzip
                         content = gzip.decompress(content)
-                        logging.info(f"Decompressed size: {len(content)} bytes")
+                        logging.info(f"Decompressed GZIP size: {len(content)} bytes")
                     except Exception as e:
                         logging.error(f"Failed to decompress GZIP content: {e}")
+                
+                # Check for ZIP signature (PK\x03\x04)
+                elif len(content) > 4 and content[:4] == b'\x50\x4b\x03\x04':
+                    logging.info("Detected ZIP compression, decompressing...")
+                    try:
+                        import zipfile
+                        import io
+                        with zipfile.ZipFile(io.BytesIO(content)) as z:
+                            # Assume the first file is the CSV
+                            file_list = z.namelist()
+                            if file_list:
+                                content = z.read(file_list[0])
+                                logging.info(f"Decompressed ZIP ({file_list[0]}) size: {len(content)} bytes")
+                    except Exception as e:
+                         logging.error(f"Failed to decompress ZIP content: {e}")
                 
                 # Save locally for shared access
                 os.makedirs(output_path, exist_ok=True)
