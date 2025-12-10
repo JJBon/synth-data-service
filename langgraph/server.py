@@ -198,8 +198,9 @@ async def job_poller_node(state: AgentState, config):
                 current_status = status_obj.get("status", "").lower()
                 
                 if current_status in ["completed", "success"]:
-                    # Job completed! Now call finalize_job
-                    finalize_result = await session.call_tool("finalize_job", arguments={"job_id": job_id})
+                    # Job completed! Now call import_results
+                    session_id = config["configurable"].get("thread_id")
+                    finalize_result = await session.call_tool("import_results", arguments={"job_id": job_id, "session_id": session_id})
                     
                     finalize_str = ""
                     if finalize_result.content:
