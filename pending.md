@@ -1,101 +1,129 @@
 # Pending: NeMo Data Designer EKS Deployment
 
-**Last Updated:** 2025-12-09 23:04 EST
+**Last Updated:** 2025-12-10 11:12 EST
 
-## Current State
+## Current State - WORKING ✅
 
-### ✅ Working Components
-- **PostgreSQL** (`postgres-56c5fc85bd`) - Running, has `nmp` user and databases (`entitystore`, `datastore`, `jobs`)
-- **LiteLLM** (`litellm-9ddbc68b6`) - Running at `litellm:4000`, configured with Bedrock Claude Haiku
-- **LangGraph Server** (`langgraph-server-787cbd6f84`) - Running
-- **Streamlit UI** (`streamlit-ui-55f6c46b5b`) - Running
-- **MCP Server SDK** (`mcp-server-sdk-6f5569d87d`) - Running with `nemo-microservices` SDK, `NEMO_BASE_URL=http://data-designer:8000`
+### ✅ All Components Running
+| Component | Status |
+|-----------|--------|
+| PostgreSQL | ✅ Running |
+| LiteLLM | ✅ Running (Bedrock Claude Haiku) |
+| LangGraph Server | ✅ Running |
+| Streamlit UI | ✅ Running |
+| MCP Server SDK | ✅ Running |
+| NeMo Data Designer (Helm) | ✅ Running |
+| NeMo Core API | ✅ Running |
+| NeMo Core Controller | ✅ Running |
+| NeMo Data Store | ✅ Running |
+| NeMo JobsDB | ✅ Running |
+| NeMo PostgreSQL | ✅ Running |
 
-### ⏳ NeMo Platform Deployment (Partially Working)
+### ✅ Job Execution Working
+- Jobs successfully submit and complete
+- EFS StorageClass (`efs-sc`) provides RWX storage for job pods
+- Results available via NeMo API download endpoints
 
-#### Manual Deployment Approach (Closer to Working)
-Files: `nemo-gitops/apps/base/nemo/deployment.yaml`, `nemo-gitops/apps/base/nemo/core-stack.yaml`
-
-**What worked:**
-- `data-designer` - Running, preview works perfectly
-- `datastore` - Running
-- `nmp-core` - Running (needed `--quickstart` arg, not `infra --quickstart`)
-- `openbao` - Running (needed `bao server` command, not `server`)
-- `entity-store` - Can run but needs postgres connection
-
-**Issue:** Job creation from `data-designer` → `nmp-core` returned `APIConnectionError: Connection error`. The `nemo-config` ConfigMap has `jobs_url: http://nmp-core:8000` but connection fails.
-
-#### Helm Chart Approach (Stalled)
-**Commands run:**
+### Access URLs (via port-forward)
 ```bash
-helm repo add nmp https://helm.ngc.nvidia.com/nvidia/nemo-microservices --username='$oauthtoken' --password=$NGC_API_KEY
-kubectl create secret generic ngc-api --from-literal=NGC_API_KEY=$NGC_API_KEY
-kubectl create secret docker-registry nvcrimagepullsecret --docker-server=nvcr.io --docker-username='$oauthtoken' --docker-password=$NGC_API_KEY
-kubectl patch storageclass gp2 -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+# Streamlit UI
+kubectl port-forward svc/streamlit-ui 8501:8501
+# Access: http://localhost:8501
+
+# NeMo Data Designer API
+kubectl port-forward svc/nemo-data-designer 8000:8000
+# Access: http://localhost:8000
+
+# LiteLLM
+kubectl port-forward svc/litellm 4000:4000
+# Access: http://localhost:4000
 ```
 
-**Issues:**
-1. **ReadWriteMany (RWX) storage required** - Data-store and job storage need RWX, but EBS (`gp2`) only supports RWO
-2. **Need AWS EFS** with EFS CSI driver for shared storage
-3. Helm install timed out / stalled with pending PVCs
+## GitOps (Flux) Integration
 
-### 🔄 What Was Proven Working
-- **Preview data generation works end-to-end:**
-  - Agent adds columns → MCP calls SDK → data-designer generates with LiteLLM/Bedrock → returns preview data
-  - LLM text columns generated successfully with Claude Haiku
-  - 10 successful LLM requests with 0 failures
+### Flux HelmRelease
+- Location: `nemo-gitops/apps/base/nemo/helmrelease.yaml`
+- Manages NeMo Data Designer via Helm
+- References `nmp/nemo-microservices-helm-chart:25.11.*`
 
-## Next Steps (Choose One)
-
-### Option 1: Fix Manual Deployment (Recommended for Quick Win)
-The `APIConnectionError` between `data-designer` and `nmp-core` needs investigation:
-1. Check if `nmp-core` health endpoint works: `kubectl exec -it <pod> -- curl http://nmp-core:8000/health`
-2. May need to configure `nmp-core` with proper database connection
-3. Check `nmp-core` logs for startup errors
-
-### Option 2: Set Up AWS EFS for Helm Chart
+### Automated Secrets
 ```bash
-# Add EFS CSI driver
-helm repo add aws-efs-csi-driver https://kubernetes-sigs.github.io/aws-efs-csi-driver/
-helm install aws-efs-csi-driver aws-efs-csi-driver/aws-efs-csi-driver --namespace kube-system
-
-# Create EFS file system in Terraform or AWS console
-# Create StorageClass for EFS with ReadWriteMany
+# From .env file, run:
+make eks-secrets
+# Auto-generates LITELLM_KEY if not set
+# Creates: app-secrets, litellm-secrets, ngc-registry, nvcrimagepullsecret, ngc-api, nemo-db-secrets
 ```
 
-### Option 3: Use Preview-Only Workflow
-The `preview_data` function works perfectly. If job execution is not critical, the current setup can generate sample data.
+## Makefile Commands
 
-## Files Modified/Created
+### Infrastructure
+```bash
+make infra-init   # Initialize Terraform
+make infra-apply  # Create EKS + EFS infrastructure
+make infra-destroy  # Destroy all infrastructure
+```
 
-| File | Purpose |
-|------|---------|
-| `nemo-gitops/apps/base/nemo/deployment.yaml` | Data-designer + full nemo-config |
-| `nemo-gitops/apps/base/nemo/core-stack.yaml` | nmp-core, datastore, entity-store, openbao |
-| `nemo-gitops/helm/nemo-values.yaml` | Custom values for Helm chart (LiteLLM integration) |
-| `mcp_server_py/requirements.txt` | Added `python-json-logger` for SDK |
+### EKS Deployment
+```bash
+make eks-secrets   # Create all secrets (auto-generates LITELLM_KEY)
+make eks-storage   # Set gp2 as default StorageClass
+make eks-efs-sc    # Create EFS StorageClass from Terraform output
+make eks-deploy    # Deploy all applications
+make eks-status    # Check pod/service/pvc status
+```
+
+### ECR Image Management
+```bash
+make ecr-login      # Login to ECR
+make ecr-build      # Build images locally
+make ecr-push       # Push images to ECR
+```
 
 ## Environment Variables Required
-```bash
-# In nemo-db-secrets
-DATABASE_PASSWORD=nmp
 
-# In app-secrets
-NIM_API_KEY=...
-LITELLM_KEY=...
-NGC_API_KEY=... (also in ngc-api secret)
+```bash
+# In .env file:
+NGC_API_KEY=...           # NGC catalog access
+NIM_API_KEY=...           # NVIDIA API access
+AWS_ACCESS_KEY_ID=...     # AWS credentials
+AWS_SECRET_ACCESS_KEY=... # AWS credentials
+AWS_REGION=us-east-1      # AWS region
+
+# LITELLM_KEY is auto-generated if not set
 ```
 
-## Cleanup Commands
-```bash
-# Remove helm release if needed
-helm uninstall nemo-platform
+## Architecture
 
-# Remove manual NeMo deployments
-kubectl delete deployment nmp-core datastore entity-store openbao data-designer
-kubectl delete service nmp-core datastore entity-store openbao data-designer
-kubectl delete configmap nemo-config
-
-# Remove PVCs
-kubectl delete pvc --all
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Streamlit UI (:8501)                      │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  LangGraph Server (:8003)                    │
+│                     (Agent/Reasoner)                         │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  MCP Server SDK (:8002)                      │
+│              (NeMo Tools: preview, create_job)               │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+         ┌────────────────┴────────────────┐
+         ▼                                 ▼
+┌──────────────────┐            ┌──────────────────┐
+│  NeMo Data       │            │    LiteLLM       │
+│  Designer        │────────────│    (:4000)       │
+│  (:8000)         │            │ (Bedrock Claude) │
+└────────┬─────────┘            └──────────────────┘
+         │
+         ▼
+┌──────────────────────────────────────────────────────────────┐
+│                    NeMo Core Services                         │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────────┐ │
+│  │Core API  │ │Controller│ │Data Store│ │ EFS Storage (RWX)│ │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────────────┘ │
+└──────────────────────────────────────────────────────────────┘
 ```

@@ -3,3 +3,4 @@ kind: Kustomization
 resources:
   - deployment.yaml
   - core-stack.yaml
+  - helmrelease.yaml

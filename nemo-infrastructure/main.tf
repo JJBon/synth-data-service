@@ -59,9 +59,10 @@ module "eks" {
       associate_public_ip_address = true
     }]
 
-    # Grant permissions for EBS CSI Driver (Lazy fix since IRSA isn't set up)
+    # Grant permissions for EBS and EFS CSI Drivers (Lazy fix since IRSA isn't set up)
     iam_role_additional_policies = {
       AmazonEBSCSIDriverPolicy = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+      AmazonEFSCSIDriverPolicy = "arn:aws:iam::aws:policy/service-role/AmazonEFSCSIDriverPolicy"
     }
   }
 
@@ -162,6 +163,9 @@ module "eks_blueprints_addons" {
     aws-ebs-csi-driver = {
       most_recent = true
     }
+    aws-efs-csi-driver = {
+      most_recent = true
+    }
     coredns = {
       most_recent = true
     }
@@ -181,6 +185,48 @@ module "eks_blueprints_addons" {
   # enable_karpenter = true 
 
   tags = local.tags
+}
+
+################################################################################
+# EFS for Shared Storage (RWX)
+################################################################################
+
+resource "aws_security_group" "efs" {
+  name        = "${local.name}-efs"
+  description = "Allow NFS traffic from EKS nodes"
+  vpc_id      = data.aws_vpc.default.id
+
+  ingress {
+    from_port       = 2049
+    to_port         = 2049
+    protocol        = "tcp"
+    security_groups = [module.eks.node_security_group_id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = local.tags
+}
+
+resource "aws_efs_file_system" "nemo_jobs" {
+  creation_token   = "${local.name}-jobs"
+  encrypted        = true
+  performance_mode = "generalPurpose"
+  throughput_mode  = "bursting"
+
+  tags = merge(local.tags, { Name = "${local.name}-jobs" })
+}
+
+resource "aws_efs_mount_target" "nemo_jobs" {
+  for_each        = toset(data.aws_subnets.default.ids)
+  file_system_id  = aws_efs_file_system.nemo_jobs.id
+  subnet_id       = each.value
+  security_groups = [aws_security_group.efs.id]
 }
 
 # --- ECR Repositories ---
@@ -224,4 +270,9 @@ output "ecr_repository_urls" {
     streamlit_ui     = aws_ecr_repository.streamlit_ui.repository_url
     langgraph_server = aws_ecr_repository.langgraph_server.repository_url
   }
+}
+
+output "efs_file_system_id" {
+  description = "EFS file system ID for RWX storage"
+  value       = aws_efs_file_system.nemo_jobs.id
 }

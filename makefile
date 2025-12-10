@@ -94,16 +94,26 @@ eks-configure:
 .PHONY: eks-secrets
 eks-secrets:
 	@echo "Creating Kubernetes secrets..."
+	$(eval LITELLM_KEY_VAL := $(if $(LITELLM_KEY),$(LITELLM_KEY),sk-$(shell openssl rand -hex 16)))
+	@echo "Using LITELLM_KEY: $(LITELLM_KEY_VAL)"
 	kubectl create secret generic app-secrets \
 		--from-literal=NIM_API_KEY=$(NIM_API_KEY) \
-		--from-literal=LITELLM_KEY=$(LITELLM_KEY) \
-		--from-literal=LLM_API_KEY=$(LITELLM_KEY) \
+		--from-literal=LITELLM_KEY=$(LITELLM_KEY_VAL) \
+		--from-literal=LLM_API_KEY=$(LITELLM_KEY_VAL) \
+		--from-literal=AWS_ACCESS_KEY_ID=$(AWS_ACCESS_KEY_ID) \
+		--from-literal=AWS_SECRET_ACCESS_KEY=$(AWS_SECRET_ACCESS_KEY) \
+		--from-literal=AWS_REGION_NAME=us-east-1 \
 		--dry-run=client -o yaml | kubectl apply -f -
 	kubectl create secret generic litellm-secrets \
 		--from-literal=DATABASE_URL=postgresql://litellm:litellm@postgres:5432/litellmdb \
-		--from-literal=LITELLM_MASTER_KEY=$(LITELLM_KEY) \
+		--from-literal=LITELLM_MASTER_KEY=$(LITELLM_KEY_VAL) \
 		--dry-run=client -o yaml | kubectl apply -f -
 	kubectl create secret docker-registry ngc-registry \
+		--docker-server=nvcr.io \
+		--docker-username='$$oauthtoken' \
+		--docker-password=$(NGC_API_KEY) \
+		--dry-run=client -o yaml | kubectl apply -f -
+	kubectl create secret docker-registry nvcrimagepullsecret \
 		--docker-server=nvcr.io \
 		--docker-username='$$oauthtoken' \
 		--docker-password=$(NGC_API_KEY) \
@@ -114,11 +124,31 @@ eks-secrets:
 	kubectl create secret generic nemo-db-secrets \
 		--from-literal=DATABASE_PASSWORD=nmp \
 		--dry-run=client -o yaml | kubectl apply -f -
+	@echo "✅ All secrets created with LITELLM_KEY: $(LITELLM_KEY_VAL)"
 
 .PHONY: eks-storage
 eks-storage:
 	@echo "Setting gp2 as default StorageClass..."
 	kubectl patch storageclass gp2 -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+
+.PHONY: eks-efs-sc
+eks-efs-sc:
+	@echo "Creating EFS StorageClass for RWX storage..."
+	$(eval EFS_ID := $(shell cd $(INFRA_DIR) && terraform output -raw efs_file_system_id 2>/dev/null))
+	kubectl apply -f - <<EOF
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: efs-sc
+provisioner: efs.csi.aws.com
+parameters:
+  provisioningMode: efs-ap
+  fileSystemId: $(EFS_ID)
+  directoryPerms: "700"
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+EOF
+	@echo "✅ EFS StorageClass 'efs-sc' created with EFS ID: $(EFS_ID)"
 
 .PHONY: eks-deploy
 eks-deploy: eks-secrets eks-storage

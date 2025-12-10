@@ -1,0 +1,104 @@
+# Flux HelmRelease for NeMo Data Designer
+# This manages the NeMo Data Designer Helm chart deployment via GitOps
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: nemo-microservices
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: https://helm.ngc.nvidia.com/nvidia/nemo-microservices
+  secretRef:
+    name: ngc-helm-credentials
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ngc-helm-credentials
+  namespace: flux-system
+type: Opaque
+stringData:
+  username: "$oauthtoken"
+  # NGC_API_KEY will be set via external-secrets or manual kubectl create
+  password: "${NGC_API_KEY}"
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: nemo-data-designer
+  namespace: default
+spec:
+  interval: 5m
+  chart:
+    spec:
+      chart: nemo-microservices-helm-chart
+      version: "25.11.*"
+      sourceRef:
+        kind: HelmRepository
+        name: nemo-microservices
+        namespace: flux-system
+  values:
+    # Use existing secrets we already created
+    existingSecret: ngc-api
+    existingImagePullSecret: nvcrimagepullsecret
+
+    # Enable only Data Designer (not full platform)
+    tags:
+      platform: false
+      data-designer: true
+      auditor: false
+      studio: false
+      safe-synthesizer: false
+
+    global:
+      imagePullSecrets:
+        - name: nvcrimagepullsecret
+      security:
+        allowInsecureImages: true
+
+    # Data Designer configuration
+    data-designer:
+      env:
+        NIM_API_KEY:
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: NIM_API_KEY
+        LITELLM_KEY:
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: LITELLM_KEY
+
+      config:
+        model_provider_registry:
+          default: "litellm"
+          providers:
+            - name: "nvidiabuild"
+              endpoint: "https://integrate.api.nvidia.com/v1"
+              api_key: "NIM_API_KEY"
+            - name: "litellm"
+              endpoint: "http://litellm:4000/v1"
+              api_key: "LITELLM_KEY"
+
+    # Core configuration for job storage (EFS for RWX)
+    core:
+      executors:
+        - provider: cpu
+          profile: default
+          backend: kubernetes_job
+          config:
+            storage:
+              storageClass: efs-sc
+              accessModes:
+                - ReadWriteMany
+              size: 200Gi
+        - provider: gpu
+          profile: default
+          backend: kubernetes_job
+          config:
+            storage:
+              storageClass: efs-sc
+              accessModes:
+                - ReadWriteMany
+              size: 200Gi

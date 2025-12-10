@@ -1,18 +1,18 @@
-# NeMo Microservices Helm Chart Custom Values
-# For deploying Data Designer with LiteLLM on EKS
+# NeMo Data Designer Helm Chart Values
+# Following: https://docs.nvidia.com/nemo/microservices/latest/set-up/deploy-as-microservices/data-designer/parent-chart.html
 
-# Use existing secrets we created
+# Use existing secrets we already created
 existingSecret: ngc-api
 existingImagePullSecret: nvcrimagepullsecret
 
-# Install full platform
+# Enable only Data Designer (not full platform)
 tags:
-  platform: true
+  platform: false
+  data-designer: true
   auditor: false
   studio: false
   safe-synthesizer: false
 
-# Global settings
 global:
   imagePullSecrets:
     - name: nvcrimagepullsecret
@@ -21,30 +21,47 @@ global:
 
 # Data Designer configuration
 data-designer:
-  enabled: true
+  env:
+    NIM_API_KEY:
+      valueFrom:
+        secretKeyRef:
+          name: app-secrets
+          key: NIM_API_KEY
+    LITELLM_KEY:
+      valueFrom:
+        secretKeyRef:
+          name: app-secrets
+          key: LITELLM_KEY
+
   config:
-    modelProviderRegistry:
+    model_provider_registry:
       default: "litellm"
       providers:
-        - name: "litellm"
-          endpoint: "http://litellm:4000/v1"
-          apiKey: "LITELLM_KEY"
         - name: "nvidiabuild"
           endpoint: "https://integrate.api.nvidia.com/v1"
-          apiKey: "NIM_API_KEY"
+          api_key: "NIM_API_KEY"
+        - name: "litellm"
+          endpoint: "http://litellm:4000/v1"
+          api_key: "LITELLM_KEY"
 
-# Disable components we don't need
-customizer:
-  enabled: false
-
-evaluator:
-  enabled: false
-
-guardrails:
-  enabled: false
-
-deployment-management:
-  enabled: false
-
-nim-proxy:
-  enabled: false
+# Core configuration for job storage (EFS for RWX)
+core:
+  executors:
+    - provider: cpu
+      profile: default
+      backend: kubernetes_job
+      config:
+        storage:
+          storageClass: efs-sc
+          accessModes:
+            - ReadWriteMany
+          size: 200Gi
+    - provider: gpu
+      profile: default
+      backend: kubernetes_job
+      config:
+        storage:
+          storageClass: efs-sc
+          accessModes:
+            - ReadWriteMany
+          size: 200Gi
