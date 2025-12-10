@@ -726,12 +726,14 @@ def import_results(job_id: str, session_id: str = None) -> dict:
                     except Exception as e:
                          logging.error(f"Failed to decompress ZIP content: {e}")
 
+                # Save locally for shared access
+                os.makedirs(output_path, exist_ok=True)
+                
                 # Check for TAR format (often result of .tar.gz)
+                file_written = False
                 try:
                     import tarfile
                     import io
-                    # Use a copy of content for tarfile opening in case previous checks consumed it? 
-                    # Actually content is bytes, so io.BytesIO(content) creates a new stream each time. Safe.
                     
                     # We need to detect if it is actually a tar file
                     is_tar = False
@@ -773,15 +775,9 @@ def import_results(job_id: str, session_id: str = None) -> dict:
                                          import io
                                          df = pd.read_parquet(io.BytesIO(extracted_bytes))
                                          # Save as CSV to the expected csv_path
-                                         os.makedirs(output_path, exist_ok=True)
                                          df.to_csv(csv_path, index=False)
                                          logging.info(f"Converted to CSV at {csv_path}")
-                                         # Stop here, we wrote the file
-                                         return {
-                                             "status": "success", 
-                                             "job_id": job_id, 
-                                             "message": "Converted Parquet to CSV and uploaded"
-                                         }
+                                         file_written = True
                                     else:
                                          # Assume CSV or text
                                          content = extracted_bytes
@@ -790,10 +786,9 @@ def import_results(job_id: str, session_id: str = None) -> dict:
                 except Exception as e:
                     logging.error(f"Error extracting TAR: {e}")
                 
-                # Save locally (if not already handled by parquet conversion)
-                os.makedirs(output_path, exist_ok=True)
-                with open(csv_path, "wb") as f:
-                    f.write(content)
+                if not file_written:
+                    with open(csv_path, "wb") as f:
+                        f.write(content)
             else:
                 return {
                     "status": "error",
