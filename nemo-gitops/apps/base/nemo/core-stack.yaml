@@ -23,7 +23,7 @@ spec:
       containers:
       - name: nmp-core
         image: nvcr.io/nvidia/nemo-microservices/nmp-core:25.11
-        args: ["infra", "--quickstart"]
+        args: ["--quickstart"]
         ports:
         - containerPort: 8000
         env:
@@ -237,7 +237,7 @@ spec:
       containers:
       - name: openbao
         image: openbao/openbao:2.3.2
-        command: ["server", "-dev", "-dev-root-token-id=root"]
+        command: ["bao", "server", "-dev", "-dev-root-token-id=root"]
         ports:
         - containerPort: 8200
 ---
