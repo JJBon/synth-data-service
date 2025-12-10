@@ -63,6 +63,7 @@ PROCESS:
 2. DEFINE MODEL FIRST: You MUST call `define_model` before any LLM columns.
 3. DISCOVER SCHEMA: Call tools to define columns.
 4. FINALIZE: Call `finalize_submission` when ready.
+5. MONITOR & IMPORT: After submission, check job status. When 'COMPLETED', AUTOMATICALLY call `import_results`.
 
 CRITICAL RULES:
 - ALWAYS call `define_model` FIRST if you plan to use LLM columns (define_llm_text_column).
@@ -76,8 +77,10 @@ CRITICAL RULES:
 - NO SIMULATION. Call the tools.
 - IMPORTANT: Use 'snake_case' for column names (e.g., 'short_description', not 'Short Description') to avoid template errors.
 - If referencing another column in a prompt, use the exact snake_case name (e.g., '{{ short_description }}').
+- ON COMPLETION: If a job is 'COMPLETED', you MUST call `import_results(job_id)` to show the data in the UI.
 
 When the user says "submit", call `finalize_submission`.
+Then track status until 'COMPLETED' and import results.
 """)
 
     if not any(isinstance(m, SystemMessage) for m in messages):
