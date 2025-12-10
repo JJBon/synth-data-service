@@ -696,14 +696,14 @@ def import_results(job_id: str, session_id: str = None) -> dict:
             response = httpx.get(download_url, timeout=60)
             
             if response.status_code == 200:
-                # Parse CSV from response (validate it)
-                df = pd.read_csv(io.StringIO(response.text))
+                # Save raw content directly to file (bypass pandas parsing to avoid "bad lines" errors)
                 source = "nemo_api"
-                logging.info(f"Fetched {len(df)} rows from NeMo API")
+                logging.info(f"Fetched {len(response.content)} bytes from NeMo API")
                 
                 # Save locally for shared access
                 os.makedirs(output_path, exist_ok=True)
-                df.to_csv(csv_path, index=False)
+                with open(csv_path, "wb") as f:
+                    f.write(response.content)
             else:
                 return {
                     "status": "error",
@@ -719,7 +719,7 @@ def import_results(job_id: str, session_id: str = None) -> dict:
                 s3_client = boto3.client("s3")
                 key = f"data/{session_id}/{job_id}.csv" if session_id else f"data/{job_id}.csv"
                 logging.info(f"Uploading {csv_path} to s3://{s3_bucket}/{key}")
-                s3_client.upload_file(dataset_csv_path if 'dataset_csv_path' in locals() else csv_path, s3_bucket, key)
+                s3_client.upload_file(csv_path, s3_bucket, key)
                 return {
                     "status": "success",
                     "job_id": job_id,
