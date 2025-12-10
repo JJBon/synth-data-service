@@ -201,6 +201,8 @@ spec:
           value: "nmp"
         - name: POSTGRES_HOST
           value: "postgres"
+        - name: POSTGRES_PORT
+          value: "5432"
         - name: POSTGRES_DB
           value: "entitystore"
         - name: BASE_URL_DATASTORE
