@@ -10,3 +10,4 @@ huggingface_hub
 pydantic
 aiohttp
 python-json-logger
+duckdb

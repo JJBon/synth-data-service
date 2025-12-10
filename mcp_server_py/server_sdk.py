@@ -632,6 +632,113 @@ def download_results(job_id: str) -> dict:
     return result
 
 
+@mcp.tool()
+def import_results(job_id: str, table_name: str = None) -> dict:
+    """
+    Import job results into shared database for display in UI sidebar.
+    
+    This tool fetches the job results (from local file or NeMo API) and 
+    imports them into a shared DuckDB database that the Streamlit UI reads.
+    
+    Args:
+        job_id: The job ID to import results for
+        table_name: Optional custom table name (defaults to sanitized job_id)
+    
+    Returns:
+        Table info with preview data and row count
+    """
+    import httpx
+    import pandas as pd
+    import duckdb
+    import io
+    
+    if not SDK_AVAILABLE:
+        return {"error": "NeMo SDK not available", "status": "stub_mode"}
+    
+    # Default table name from job_id
+    if not table_name:
+        # Sanitize job_id for table name (replace hyphens with underscores)
+        table_name = job_id.replace("-", "_")
+    else:
+        # Sanitize custom table name
+        table_name = table_name.lower().replace(" ", "_").replace("-", "_")
+    
+    output_path = "/tmp/data-designer-output"
+    csv_path = f"{output_path}/{job_id}.csv"
+    
+    # Shared DuckDB path (mounted volume for Streamlit)
+    duckdb_path = os.environ.get("DUCKDB_PATH", "/app/data/tables.duckdb")
+    os.makedirs(os.path.dirname(duckdb_path), exist_ok=True)
+    
+    try:
+        df = None
+        source = None
+        
+        # Try local file first
+        if os.path.exists(csv_path):
+            df = pd.read_csv(csv_path)
+            source = "local_file"
+            logging.info(f"Loaded {len(df)} rows from local file: {csv_path}")
+        else:
+            # Fetch from NeMo API
+            nemo_base_url = os.environ.get("NEMO_BASE_URL", "http://localhost:8080")
+            download_url = f"{nemo_base_url}/v1/data-designer/jobs/{job_id}/results/dataset/download"
+            
+            logging.info(f"Fetching results from: {download_url}")
+            response = httpx.get(download_url, timeout=60)
+            
+            if response.status_code == 200:
+                # Parse CSV from response
+                df = pd.read_csv(io.StringIO(response.text))
+                source = "nemo_api"
+                logging.info(f"Fetched {len(df)} rows from NeMo API")
+                
+                # Save locally for future use
+                os.makedirs(output_path, exist_ok=True)
+                df.to_csv(csv_path, index=False)
+            else:
+                return {
+                    "status": "error",
+                    "message": f"Failed to fetch results: HTTP {response.status_code}",
+                    "download_url": download_url
+                }
+        
+        if df is None or df.empty:
+            return {"status": "error", "message": "No data found for job"}
+        
+        # Save to shared DuckDB
+        conn = duckdb.connect(duckdb_path)
+        conn.execute(f"DROP TABLE IF EXISTS {table_name}")
+        conn.register("temp_df", df)
+        conn.execute(f"CREATE TABLE {table_name} AS SELECT * FROM temp_df")
+        conn.unregister("temp_df")
+        conn.close()
+        
+        # Return summary
+        preview = df.head(5).to_dict(orient="records")
+        columns = [{"name": col, "type": str(df[col].dtype)} for col in df.columns]
+        
+        return {
+            "status": "success",
+            "job_id": job_id,
+            "table_name": table_name,
+            "source": source,
+            "row_count": len(df),
+            "columns": columns,
+            "preview": preview,
+            "duckdb_path": duckdb_path,
+            "message": f"Imported {len(df)} rows into table '{table_name}'. Refresh the UI sidebar to see it."
+        }
+        
+    except Exception as e:
+        import traceback
+        return {
+            "status": "error",
+            "message": str(e),
+            "traceback": traceback.format_exc()[:500]
+        }
+
+
 # --- Main Entry Point ---
 
 if __name__ == "__main__":
