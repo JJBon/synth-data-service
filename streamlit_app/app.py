@@ -82,6 +82,12 @@ def file_watcher():
         
     # S3 polling logic
     s3_bucket = os.environ.get("S3_ARTIFACTS_BUCKET")
+    
+    # Get the session ID from session state
+    session_id = st.session_state.get("session_id")
+    if not session_id:
+        return
+
     # Use the session-specific folder path
     s3_prefix = f"data/{session_id}/"
     print(f"DEBUG: Watcher polling S3 prefix: {s3_prefix} (Bucket: {s3_bucket})", flush=True)
