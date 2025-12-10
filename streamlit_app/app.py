@@ -90,6 +90,7 @@ def file_watcher():
              s3 = boto3.client("s3")
              # Poll ONLY our session's folder
              prefix = f"data/{session_id}/"
+             print(f"DEBUG: Watcher polling S3 prefix: {prefix} (Bucket: {s3_bucket})", flush=True)
              response = s3.list_objects_v2(Bucket=s3_bucket, Prefix=prefix)
              if 'Contents' in response:
                  latest_obj = max(response['Contents'], key=lambda x: x['LastModified'])

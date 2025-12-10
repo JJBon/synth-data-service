@@ -372,6 +372,7 @@ async def generate_content(request: Request):
                         "configurable": {
                             "session": session,
                             "llm_with_tools": llm_with_tools,
+                            "thread_id": session_id
                         },
                         "recursion_limit": 100
                     }
