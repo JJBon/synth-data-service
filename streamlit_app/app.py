@@ -102,7 +102,7 @@ def file_watcher():
             
         # Check against session state
         if "last_import_mtime" not in st.session_state:
-            st.session_state.last_import_mtime = time.time()
+            st.session_state.last_import_mtime = 0.0
 
         # If new file detected (allow small buffer)
         if mtime > st.session_state.last_import_mtime:
