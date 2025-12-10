@@ -527,10 +527,14 @@ def get_job_status(job_id: str) -> dict:
 
 
 @mcp.tool()
-def finalize_job(job_id: str) -> dict:
+def finalize_submission(job_id: str, session_id: str = None) -> dict:
     """
     Finalize a completed job: load dataset, save to files, and return preview.
     Call this AFTER get_job_status returns status='completed'.
+    
+    Args:
+        job_id: The ID of the job to finalize.
+        session_id: Optional session ID to namespace the S3 upload.
     """
     if not SDK_AVAILABLE:
         return {"error": "NeMo SDK not available", "status": "stub_mode"}
@@ -568,7 +572,7 @@ def finalize_job(job_id: str) -> dict:
              try:
                  import boto3
                  s3_client = boto3.client("s3")
-                 key = f"data/{job_id}.csv"
+                 key = f"data/{session_id}/{job_id}.csv" if session_id else f"data/{job_id}.csv"
                  logging.info(f"Uploading {dataset_csv_path} to s3://{s3_bucket}/{key}")
                  s3_client.upload_file(dataset_csv_path, s3_bucket, key)
              except Exception as e:
@@ -649,16 +653,16 @@ def download_results(job_id: str) -> dict:
 
 
 @mcp.tool()
-def import_results(job_id: str) -> dict:
+def import_results(job_id: str, session_id: str = None) -> dict:
     """
     Import job results into shared database for display in UI sidebar.
     
     This tool fetches the job results (from local file or NeMo API) and 
-    ensures the CSV file is present in the shared volume. The Streamlit UI
-    automatically detects the new file and imports it.
+    ensures the CSV file is present in the S3 bucket or shared volume.
     
     Args:
         job_id: The job ID to import results for
+        session_id: Optional session ID to namespace the S3 upload.
     
     Returns:
         Status message confirming file availability for the UI to pick up.
@@ -713,9 +717,9 @@ def import_results(job_id: str) -> dict:
             try:
                 import boto3
                 s3_client = boto3.client("s3")
-                key = f"data/{job_id}.csv"
+                key = f"data/{session_id}/{job_id}.csv" if session_id else f"data/{job_id}.csv"
                 logging.info(f"Uploading {csv_path} to s3://{s3_bucket}/{key}")
-                s3_client.upload_file(csv_path, s3_bucket, key)
+                s3_client.upload_file(dataset_csv_path if 'dataset_csv_path' in locals() else csv_path, s3_bucket, key)
                 return {
                     "status": "success",
                     "job_id": job_id,

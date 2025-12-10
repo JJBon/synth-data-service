@@ -60,42 +60,45 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Initialize DuckDB
-@st.cache_resource
+# Initialize DuckDB - SESSION SCOPED
 def get_db():
-    db_path = os.environ.get("DUCKDB_PATH", ":memory:")
+    db_path = ":memory:" # Always memory for session isolation
     return DuckDBStore(db_path)
 
-db = get_db()
+if "db" not in st.session_state:
+    st.session_state.db = get_db()
+
+db = st.session_state.db
 
 # Auto-import watcher: Monitors shared volume for new CSVs and imports them
 @st.fragment(run_every=3)
 def file_watcher():
-    # Polls shared folder OR S3 for new CSV files and imports into DuckDB
+    # Polls S3 for new CSV files specifically for THIS SESSION
     import time
     try:
         s3_bucket = os.environ.get("S3_ARTIFACTS_BUCKET")
         latest_file_path = None
         mtime = 0.0
         filename_stem = ""
-
-        if s3_bucket:
+        
+        # Get active session ID from chat component state if available
+        # Note: Chat component initializes it
+        session_id = st.session_state.get("session_id")
+        
+        if s3_bucket and session_id:
              import boto3
              s3 = boto3.client("s3")
-             response = s3.list_objects_v2(Bucket=s3_bucket, Prefix="data/")
+             # Poll ONLY our session's folder
+             prefix = f"data/{session_id}/"
+             response = s3.list_objects_v2(Bucket=s3_bucket, Prefix=prefix)
              if 'Contents' in response:
                  latest_obj = max(response['Contents'], key=lambda x: x['LastModified'])
                  mtime = latest_obj['LastModified'].timestamp()
                  latest_file_path = f"s3://{s3_bucket}/{latest_obj['Key']}"
                  filename_stem = os.path.splitext(os.path.basename(latest_obj['Key']))[0]
-        else:
-             data_dir = os.environ.get("DATA_OUTPUT_DIR", "/data-designer-output")
-             files = list(Path(data_dir).glob("*.csv"))
-             if files:
-                 latest_obj = max(files, key=lambda f: f.stat().st_mtime)
-                 mtime = latest_obj.stat().st_mtime
-                 latest_file_path = str(latest_obj)
-                 filename_stem = latest_obj.stem
+        
+        # Fallback for legacy global files (optional, maybe remove for strict isolation)
+        # We will SKIP global polling to enforce strict isolation.
 
         if not latest_file_path:
             return
@@ -109,9 +112,9 @@ def file_watcher():
             # Import it!
             table_name = filename_stem.replace("-", "_")
             
-            current_db = get_db()
-            current_db.clear_database() # Clean slate
-            current_db.save_from_csv(table_name, latest_file_path)
+            # Use session db
+            st.session_state.db.clear_database() # Clean slate
+            st.session_state.db.save_from_csv(table_name, latest_file_path)
             
             st.session_state.last_import_mtime = mtime
             st.session_state.selected_table = table_name
@@ -119,19 +122,22 @@ def file_watcher():
             
     except Exception as e:
         print(f"Watcher error: {e}")
+
 # Run the watcher in the background
 file_watcher()
 
 # Initialize session state
 if "selected_table" not in st.session_state:
-    tables = db.list_tables()
+    # Use session db
+    tables = st.session_state.db.list_tables()
     st.session_state.selected_table = tables[0] if tables else None
 
 # ===========================================
 # LEFT SIDEBAR - Database & Tables
 # ===========================================
 with st.sidebar:
-    sidebar.render(db)
+    # Use session db
+    sidebar.render(st.session_state.db)
 
 # ===========================================
 # MAIN AREA - Split: Data Grid (left) | Chat (right)
@@ -153,7 +159,7 @@ with col_data:
         with hcol3:
             # CSV download
             try:
-                df = db.get_table(selected, limit=10000)
+                df = st.session_state.db.get_table(selected, limit=10000)
                 csv = df.to_csv(index=False)
                 st.download_button("📥 CSV", csv, f"{selected}.csv", "text/csv")
             except:
@@ -162,7 +168,7 @@ with col_data:
             # Parquet download
             try:
                 import io
-                df = db.get_table(selected, limit=10000)
+                df = st.session_state.db.get_table(selected, limit=10000)
                 buffer = io.BytesIO()
                 df.to_parquet(buffer, index=False)
                 st.download_button("📥 Parquet", buffer.getvalue(), f"{selected}.parquet")
@@ -172,7 +178,7 @@ with col_data:
         st.divider()
         
         # Data table
-        data_grid.render(db, selected)
+        data_grid.render(st.session_state.db, selected)
     else:
         st.info("No table selected. Generate data using the chat on the right →")
 

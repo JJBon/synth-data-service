@@ -53,17 +53,19 @@ async def reasoner_node(state: DesignState, config):
     print("\n--- REASONER ---")
     messages = state["messages"]
     llm_with_tools = config["configurable"]["llm_with_tools"]
+    session_id = config["configurable"].get("thread_id")
 
-    system_prompt = SystemMessage(content="""
+    system_prompt = SystemMessage(content=f"""
 You are an expert Data Designer AI. Your goal is to help the user design a synthetic dataset generation job.
 You interact with a NeMo Data Designer Service via tools.
+You are operating in session: {session_id}
 
 PROCESS:
 1. GATHER REQUIREMENTS.
 2. DEFINE MODEL FIRST: You MUST call `add_model_config` before any LLM columns.
 3. DISCOVER SCHEMA: Call tools to define columns.
-4. FINALIZE: Call `finalize_submission` when ready.
-5. MONITOR & IMPORT: After submission, check job status. When 'COMPLETED', AUTOMATICALLY call `import_results`.
+4. FINALIZE: Call `finalize_submission` when ready. You MUST pass session_id='{session_id}'
+5. MONITOR & IMPORT: After submission, check job status. When 'COMPLETED', AUTOMATICALLY call `import_results` with session_id='{session_id}'.
 
 CRITICAL RULES:
 - ALWAYS call `add_model_config` FIRST if you plan to use LLM columns (add_llm_text_column).
