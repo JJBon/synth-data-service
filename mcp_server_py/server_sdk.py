@@ -296,6 +296,10 @@ def add_llm_text_column(name: str, model_alias: str, prompt: str) -> dict:
     if val_err := _validate_column_name(name):
         return val_err
     
+    # Check for circular dependency in prompt
+    if f"{{{{ {name} }}}}" in prompt:
+         return {"error": f"Invalid Prompt: Circular dependency detected. You cannot reference the column '{name}' inside its own prompt."}
+    
     builder = get_config_builder()
     builder.add_column(
         LLMTextColumnConfig(
