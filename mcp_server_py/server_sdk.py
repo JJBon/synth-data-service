@@ -698,12 +698,23 @@ def import_results(job_id: str, session_id: str = None) -> dict:
             if response.status_code == 200:
                 # Save raw content directly to file (bypass pandas parsing to avoid "bad lines" errors)
                 source = "nemo_api"
-                logging.info(f"Fetched {len(response.content)} bytes from NeMo API")
+                content = response.content
+                logging.info(f"Fetched {len(content)} bytes from NeMo API")
+                
+                # Check for GZIP signature (0x1f 0x8b)
+                if len(content) > 2 and content[:2] == b'\x1f\x8b':
+                    logging.info("Detected GZIP compression, decompressing...")
+                    try:
+                        import gzip
+                        content = gzip.decompress(content)
+                        logging.info(f"Decompressed size: {len(content)} bytes")
+                    except Exception as e:
+                        logging.error(f"Failed to decompress GZIP content: {e}")
                 
                 # Save locally for shared access
                 os.makedirs(output_path, exist_ok=True)
                 with open(csv_path, "wb") as f:
-                    f.write(response.content)
+                    f.write(content)
             else:
                 return {
                     "status": "error",

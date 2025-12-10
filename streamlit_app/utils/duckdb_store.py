@@ -42,8 +42,15 @@ class DuckDBStore:
     
     def save_from_csv(self, table_name: str, csv_path: str) -> None:
         """Load a CSV file and save as a table."""
-        df = pd.read_csv(csv_path)
-        self.save_dataframe(table_name, df)
+        print(f"DEBUG: Reading CSV from {csv_path}", flush=True)
+        try:
+             df = pd.read_csv(csv_path)
+             print(f"DEBUG: Read {len(df)} rows", flush=True)
+             self.save_dataframe(table_name, df)
+             print(f"DEBUG: Saved dataframe to {table_name}", flush=True)
+        except Exception as e:
+             print(f"DEBUG: Error reading/saving CSV: {e}", flush=True)
+             raise e
     
     def list_tables(self) -> list[str]:
         """List all tables in the database."""

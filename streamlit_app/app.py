@@ -84,8 +84,10 @@ def file_watcher():
     s3_bucket = os.environ.get("S3_ARTIFACTS_BUCKET")
     
     # Get the session ID from session state
+    print(f"DEBUG: session_state keys: {list(st.session_state.keys())}", flush=True)
     session_id = st.session_state.get("session_id")
     if not session_id:
+        print("DEBUG: No session_id found in state, returning.", flush=True)
         return
 
     # Use the session-specific folder path
@@ -120,11 +122,14 @@ def file_watcher():
         # If new file detected (allow small buffer)
         if mtime > st.session_state.last_import_mtime:
             # Import it!
+            print(f"DEBUG: Found new file {latest_file_path}, importing...", flush=True)
             table_name = filename_stem.replace("-", "_")
             
             # Use session db
             st.session_state.db.clear_database() # Clean slate
+            print(f"DEBUG: cleared db, saving {table_name}", flush=True)
             st.session_state.db.save_from_csv(table_name, latest_file_path)
+            print(f"DEBUG: saved {table_name}, rerunning", flush=True)
             
             st.session_state.last_import_mtime = mtime
             st.session_state.selected_table = table_name
@@ -200,7 +205,14 @@ with col_chat:
     def on_job_complete(job_id, csv_path):
         """Callback when job completes - import to DuckDB."""
         table_name = job_id.replace("-", "_")
-        db.save_from_csv(table_name, csv_path)
-        st.session_state.selected_table = table_name
+        print(f"DEBUG: on_job_complete: Importing CSV from {csv_path} to table {table_name}", flush=True)
+        try:
+            db.save_from_csv(table_name, csv_path)
+            print(f"DEBUG: on_job_complete: Successfully imported {csv_path}", flush=True)
+            st.session_state.selected_table = table_name
+        except Exception as e:
+            print(f"DEBUG: on_job_complete: Error importing CSV {csv_path}: {e}", flush=True)
+            # Optionally re-raise or handle the error
+            raise e
     
     chat.render(on_job_complete=on_job_complete)
