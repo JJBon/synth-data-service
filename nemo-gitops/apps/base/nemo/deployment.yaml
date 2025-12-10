@@ -51,6 +51,18 @@ spec:
         - name: nemo-config
           mountPath: /etc/nmp
           readOnly: true
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 10
       volumes:
       - name: nemo-config
         configMap:
@@ -67,3 +79,51 @@ spec:
   ports:
   - port: 8000
     targetPort: 8000
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nemo-config
+  namespace: default
+data:
+  config.yaml: |
+    # Platform-wide configuration for NeMo Microservices Platform
+    platform:
+      debug: false
+      log_level: "INFO"
+      base_url: "http://data-designer:8000"
+      jobs_url: "http://nmp-core:8000"
+      models_url: "http://nmp-core:8000"
+      datastore_url: "http://datastore:3000/v1/hf"
+      host: "0.0.0.0"
+      port: 8000
+
+    data_designer:
+      seed_dataset_source_registry:
+        sources:
+          - endpoint: "http://datastore:3000/v1/hf"
+
+      model_provider_registry:
+        default: "litellm"
+        providers:
+          - name: "nvidiabuild"
+            endpoint: "https://integrate.api.nvidia.com/v1"
+            api_key: "NIM_API_KEY"
+          - name: "litellm"
+            endpoint: "http://litellm:4000/v1"
+            api_key: "LITELLM_KEY"
+
+    jobs:
+      secrets:
+        backend: vault
+        vault:
+          address: "http://openbao:8200"
+          token: "root"
+
+      executors:
+        - provider: cpu
+          profile: default
+          backend: kubernetes
+          config:
+            namespace: default
+            service_account: default
