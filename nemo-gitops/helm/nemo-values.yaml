@@ -1,0 +1,50 @@
+# NeMo Microservices Helm Chart Custom Values
+# For deploying Data Designer with LiteLLM on EKS
+
+# Use existing secrets we created
+existingSecret: ngc-api
+existingImagePullSecret: nvcrimagepullsecret
+
+# Install full platform
+tags:
+  platform: true
+  auditor: false
+  studio: false
+  safe-synthesizer: false
+
+# Global settings
+global:
+  imagePullSecrets:
+    - name: nvcrimagepullsecret
+  security:
+    allowInsecureImages: true
+
+# Data Designer configuration
+data-designer:
+  enabled: true
+  config:
+    modelProviderRegistry:
+      default: "litellm"
+      providers:
+        - name: "litellm"
+          endpoint: "http://litellm:4000/v1"
+          apiKey: "LITELLM_KEY"
+        - name: "nvidiabuild"
+          endpoint: "https://integrate.api.nvidia.com/v1"
+          apiKey: "NIM_API_KEY"
+
+# Disable components we don't need
+customizer:
+  enabled: false
+
+evaluator:
+  enabled: false
+
+guardrails:
+  enabled: false
+
+deployment-management:
+  enabled: false
+
+nim-proxy:
+  enabled: false
