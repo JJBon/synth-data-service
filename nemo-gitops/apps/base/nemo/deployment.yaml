@@ -73,7 +73,11 @@ kind: Service
 metadata:
   name: data-designer
   namespace: default
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-internal: "true"
 spec:
+  type: LoadBalancer
   selector:
     app: data-designer
   ports:

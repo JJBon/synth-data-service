@@ -1,0 +1,36 @@
+# Minikube Overlay
+# Applies patches to base manifests for local Minikube deployment
+# Usage: kubectl apply -k nemo-gitops/apps/overlays/minikube/
+# Note: NeMo Data Designer should be run via Docker Compose separately
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: default
+
+# Include base resources
+resources:
+  - ../../base/litellm
+  - ../../base/agents
+  - ../../base/agents/langgraph.yaml
+
+# Apply Minikube-specific patches
+patches:
+  # Use local images with imagePullPolicy: Never
+  - path: patches/agents-images.yaml
+  # Convert LoadBalancer to NodePort for Streamlit
+  - path: patches/streamlit-nodeport.yaml
+  # Update environment variables for local URLs (points MCP to host NeMo)
+  - path: patches/local-env.yaml
+
+# Image replacements for local builds
+images:
+  - name: 668102661106.dkr.ecr.us-east-1.amazonaws.com/mcp-server-sdk
+    newName: mcp-server-sdk
+    newTag: local
+  - name: 668102661106.dkr.ecr.us-east-1.amazonaws.com/streamlit-ui
+    newName: streamlit-ui
+    newTag: local
+  - name: 668102661106.dkr.ecr.us-east-1.amazonaws.com/langgraph-server
+    newName: langgraph-server
+    newTag: local

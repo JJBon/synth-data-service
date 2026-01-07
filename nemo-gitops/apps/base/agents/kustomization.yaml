@@ -4,3 +4,4 @@ resources:
   - deployment.yaml
   - langgraph.yaml
   - streamlit.yaml
+  - ingress.yaml

@@ -1,0 +1,23 @@
+# Dockerfile for AgentCore MCP Server
+# Build: docker build -t mcp-server-agentcore .
+# Push: docker push <ECR_URL>:latest
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install dependencies
+COPY mcp_server_py/requirements-agentcore.txt requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy MCP server code
+COPY mcp_server_py/ /app/mcp_server_py/
+
+# AgentCore expects the server at 0.0.0.0:8000/mcp
+EXPOSE 8000
+
+# Run with streamable-http transport
+ENV MCP_TRANSPORT=streamable-http
+ENV PYTHONUNBUFFERED=1
+
+CMD ["python", "-m", "mcp_server_py.agentcore_server"]

@@ -1,0 +1,4 @@
+
+fastmcp
+uvicorn
+bedrock-agentcore

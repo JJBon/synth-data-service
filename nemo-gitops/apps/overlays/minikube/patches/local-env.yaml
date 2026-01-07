@@ -1,0 +1,59 @@
+# Patch: Update environment variables for local/Minikube URLs
+# MCP points to NeMo Data Designer running on host via Docker Compose
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-server-sdk
+spec:
+  template:
+    spec:
+      containers:
+        - name: mcp-server-sdk
+          env:
+            # Point to NeMo Data Designer in EKS (Internal NLB / ClusterIP)
+            - name: NEMO_BASE_URL
+              value: "http://nemo-data-designer:8000"
+            - name: NEMO_DATA_DESIGNER_URL
+              value: "http://nemo-data-designer:8000"
+            # Enable S3 for EKS
+            - name: S3_ARTIFACTS_BUCKET
+              value: "nemo-data-designer-artifacts-668102661106"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: langgraph-server
+spec:
+  template:
+    spec:
+      containers:
+        - name: langgraph-server
+          env:
+            # Use real LiteLLM or Bedrock
+            - name: LLM_BASE_URL
+              value: "http://litellm:4000/v1" 
+            - name: MCP_SERVER_URL
+              value: "http://mcp-server-sdk:8002/sse"
+            # Pass LITELLM_KEY as LLM_API_KEY
+            - name: LLM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: LITELLM_KEY
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: streamlit-ui
+spec:
+  template:
+    spec:
+      containers:
+        - name: streamlit-ui
+          env:
+            - name: LANGGRAPH_SERVER_URL
+              value: "http://langgraph-server:8003"
+            # Enable S3 for EKS
+            - name: S3_ARTIFACTS_BUCKET
+              value: "nemo-data-designer-artifacts-668102661106"

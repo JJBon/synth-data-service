@@ -36,36 +36,18 @@ data "aws_subnets" "default" {
 
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "~> 20.0"
+  version = "~> 21.0"
 
-  cluster_name    = local.name
-  cluster_version = "1.30"
+  name               = local.name
+  kubernetes_version = "1.30"
 
-  cluster_endpoint_public_access  = true
+  endpoint_public_access = true
   
   # Give the creator of the cluster admin permissions
   enable_cluster_creator_admin_permissions = true
 
   vpc_id     = data.aws_vpc.default.id
-  subnet_ids = data.aws_subnets.default.ids
-
-  eks_managed_node_group_defaults = {
-    ami_type = "AL2_x86_64"
-    
-    # Explicitly configure network interface to request Public IP
-    # This is required for Default VPC without NAT Gateway
-    network_interfaces = [{
-      delete_on_termination       = true
-      associate_public_ip_address = true
-    }]
-
-    # Grant permissions for EBS and EFS CSI Drivers (Lazy fix since IRSA isn't set up)
-    iam_role_additional_policies = {
-      AmazonEBSCSIDriverPolicy = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
-      AmazonEFSCSIDriverPolicy = "arn:aws:iam::aws:policy/service-role/AmazonEFSCSIDriverPolicy"
-      AmazonS3FullAccess       = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
-    }
-  }
+  subnet_ids = data.aws_subnets.public.ids
 
   eks_managed_node_groups = {
     # Lightweight Core: Just enough for system pods + Flux
@@ -77,6 +59,20 @@ module "eks" {
       max_size     = 5
       desired_size = 3
       
+      ami_type = "AL2_x86_64"
+      
+      # Explicitly configure network interface to request Public IP
+      network_interfaces = [{
+        delete_on_termination       = true
+        associate_public_ip_address = true
+      }]
+
+      iam_role_additional_policies = {
+        AmazonEBSCSIDriverPolicy = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+        AmazonEFSCSIDriverPolicy = "arn:aws:iam::aws:policy/service-role/AmazonEFSCSIDriverPolicy"
+        AmazonS3FullAccess       = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+      }
+
       block_device_mappings = {
         xvda = {
           device_name = "/dev/xvda"
@@ -98,6 +94,18 @@ module "eks" {
       instance_types = ["g5.xlarge"] # A10G GPU
       
       ami_type = "AL2_x86_64_GPU"
+      
+      # Explicitly configure network interface to request Public IP
+      network_interfaces = [{
+        delete_on_termination       = true
+        associate_public_ip_address = true
+      }]
+
+      iam_role_additional_policies = {
+        AmazonEBSCSIDriverPolicy = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+        AmazonEFSCSIDriverPolicy = "arn:aws:iam::aws:policy/service-role/AmazonEFSCSIDriverPolicy"
+        AmazonS3FullAccess       = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+      }
 
       # "Resourceful": Keep at 0 until needed
       min_size     = 0
@@ -151,41 +159,41 @@ module "eks" {
 # EKS Addons
 ################################################################################
 
-module "eks_blueprints_addons" {
-  source = "aws-ia/eks-blueprints-addons/aws"
-  version = "~> 1.16"
+# module "eks_blueprints_addons" {
+#   source = "aws-ia/eks-blueprints-addons/aws"
+#   version = "~> 1.19"
 
-  cluster_name      = module.eks.cluster_name
-  cluster_endpoint  = module.eks.cluster_endpoint
-  cluster_version   = module.eks.cluster_version
-  oidc_provider_arn = module.eks.oidc_provider_arn
+#   cluster_name      = module.eks.cluster_name
+#   cluster_endpoint  = module.eks.cluster_endpoint
+#   cluster_version   = module.eks.cluster_version
+#   oidc_provider_arn = module.eks.oidc_provider_arn
 
-  eks_addons = {
-    aws-ebs-csi-driver = {
-      most_recent = true
-    }
-    aws-efs-csi-driver = {
-      most_recent = true
-    }
-    coredns = {
-      most_recent = true
-    }
-    vpc-cni = {
-      most_recent = true
-    }
-    kube-proxy = {
-      most_recent = true
-    }
-  }
+#   eks_addons = {
+#     aws-ebs-csi-driver = {
+#       most_recent = true
+#     }
+#     aws-efs-csi-driver = {
+#       most_recent = true
+#     }
+#     coredns = {
+#       most_recent = true
+#     }
+#     vpc-cni = {
+#       most_recent = true
+#     }
+#     kube-proxy = {
+#       most_recent = true
+#     }
+#   }
 
-  # Enable Load Balancer Controller for Ingress
-  enable_aws_load_balancer_controller = true
+#   # Enable Load Balancer Controller for Ingress
+#   enable_aws_load_balancer_controller = true
   
-  # Enable Karpenter for intelligent auto-scaling
-  enable_karpenter = true 
+#   # Enable Karpenter for intelligent auto-scaling
+#   enable_karpenter = true 
 
-  tags = local.tags
-}
+#   tags = local.tags
+# }
 
 ################################################################################
 # EFS for Shared Storage (RWX)
@@ -223,7 +231,7 @@ resource "aws_efs_file_system" "nemo_jobs" {
 }
 
 resource "aws_efs_mount_target" "nemo_jobs" {
-  for_each        = toset(data.aws_subnets.default.ids)
+  for_each        = toset(data.aws_subnets.supported.ids)
   file_system_id  = aws_efs_file_system.nemo_jobs.id
   subnet_id       = each.value
   security_groups = [aws_security_group.efs.id]
@@ -285,7 +293,7 @@ data "aws_caller_identity" "current" {}
 
 module "s3_bucket" {
   source  = "terraform-aws-modules/s3-bucket/aws"
-  version = "3.15.1"
+  version = "4.5.0"
 
   bucket = "nemo-data-designer-artifacts-${data.aws_caller_identity.current.account_id}"
   acl    = "private"
@@ -303,4 +311,24 @@ module "s3_bucket" {
 output "s3_bucket_name" {
   description = "Name of the S3 bucket for artifacts"
   value       = module.s3_bucket.s3_bucket_id
+}
+
+# EKS Addons (Critical for Node Readiness)
+resource "aws_eks_addon" "vpc_cni" {
+  cluster_name = module.eks.cluster_name
+  addon_name   = "vpc-cni"
+  resolve_conflicts_on_create = "OVERWRITE"
+  resolve_conflicts_on_update = "OVERWRITE"
+}
+resource "aws_eks_addon" "coredns" {
+  cluster_name = module.eks.cluster_name
+  addon_name   = "coredns"
+  resolve_conflicts_on_create = "OVERWRITE"
+  resolve_conflicts_on_update = "OVERWRITE"
+}
+resource "aws_eks_addon" "kube_proxy" {
+  cluster_name = module.eks.cluster_name
+  addon_name   = "kube-proxy"
+  resolve_conflicts_on_create = "OVERWRITE"
+  resolve_conflicts_on_update = "OVERWRITE"
 }

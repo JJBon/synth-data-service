@@ -1,0 +1,26 @@
+FROM python:3.11-slim
+
+WORKDIR /
+
+# Install system dependencies if needed
+# RUN apt-get update && apt-get install -y gcc
+
+COPY mcp_server_py/requirements-agentcore.txt .
+# Use the merged requirements including pandas/jinja2
+COPY mcp_server_py/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy source
+COPY mcp_server_py/ /app/mcp_server_py/
+WORKDIR /app
+
+# Environment variables for Agent Core
+ENV MCP_TRANSPORT=streamable-http
+ENV PYTHONUNBUFFERED=1
+ENV PORT=8080
+
+# Expose the port
+EXPOSE 8080
+
+# Run the agentcore server wrapper
+CMD ["python", "mcp_server_py/minimal_server.py"]

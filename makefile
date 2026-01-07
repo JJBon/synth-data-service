@@ -88,8 +88,91 @@ infra-output:
 	cd $(INFRA_DIR) && terraform output
 
 # ============================================================================
+# MINIKUBE DEPLOYMENT (Local Kubernetes)
+# ============================================================================
+
+.PHONY: minikube-start
+minikube-start:
+	@echo "Starting Minikube with 20GB RAM and 8 CPUs..."
+	minikube start --memory=20480 --cpus=8 --disk-size=100g --driver=docker
+	minikube addons enable ingress
+
+.PHONY: minikube-build
+minikube-build:
+	@echo "Building images in Minikube's Docker daemon..."
+	@eval $$(minikube docker-env) && \
+		docker build -t mcp-server-sdk:local -f mcp_server_py/Dockerfile . && \
+		docker build -t streamlit-ui:local -f streamlit_app/Dockerfile . && \
+		docker build -t langgraph-server:local -f langgraph/Dockerfile.server .
+	@echo "Images built successfully!"
+
+.PHONY: minikube-secrets
+minikube-secrets:
+	@echo "Creating secrets for Minikube..."
+	kubectl create secret generic app-secrets \
+		--from-literal=LITELLM_KEY=$(LITELLM_KEY) \
+		--from-literal=NIM_API_KEY=$(NIM_API_KEY) \
+		--from-literal=AWS_ACCESS_KEY_ID=$(AWS_ACCESS_KEY_ID) \
+		--from-literal=AWS_SECRET_ACCESS_KEY=$(AWS_SECRET_ACCESS_KEY) \
+		--from-literal=AWS_REGION_NAME=$(AWS_REGION) \
+		--dry-run=client -o yaml | kubectl apply -f -
+	kubectl create secret generic litellm-secrets \
+		--from-literal=LITELLM_MASTER_KEY=$(LITELLM_KEY) \
+		--from-literal=DATABASE_URL=postgresql://postgres:postgres@postgres:5432/litellm \
+		--dry-run=client -o yaml | kubectl apply -f -
+	@echo "Creating NGC registry secret for NeMo images..."
+	kubectl create secret docker-registry ngc-registry \
+		--docker-server=nvcr.io \
+		--docker-username='$$oauthtoken' \
+		--docker-password=$(NGC_API_KEY) \
+		--dry-run=client -o yaml | kubectl apply -f -
+	kubectl create secret generic nemo-db-secrets \
+		--from-literal=DATABASE_PASSWORD=nemopassword \
+		--dry-run=client -o yaml | kubectl apply -f -
+
+
+.PHONY: minikube-deploy
+minikube-deploy: minikube-secrets
+	@echo "Deploying to Minikube..."
+	kubectl apply -k $(GITOPS_DIR)/apps/overlays/minikube/
+	@echo "Waiting for pods to be ready..."
+	kubectl wait --for=condition=ready pod -l app=streamlit-ui --timeout=120s || true
+	@echo "Deployment complete! Run 'make minikube-open' to access the UI."
+
+.PHONY: minikube-status
+minikube-status:
+	@echo "=== Minikube Status ==="
+	minikube status
+	@echo ""
+	@echo "=== Pods ==="
+	kubectl get pods
+	@echo ""
+	@echo "=== Services ==="
+	kubectl get svc
+
+.PHONY: minikube-open
+minikube-open:
+	@echo "Opening Streamlit UI..."
+	minikube service streamlit-ui
+
+.PHONY: minikube-clean
+minikube-clean:
+	@echo "Removing Minikube deployments..."
+	kubectl delete -k $(GITOPS_DIR)/apps/overlays/minikube/ --ignore-not-found
+	kubectl delete secret app-secrets litellm-secrets --ignore-not-found
+
+.PHONY: minikube-stop
+minikube-stop:
+	minikube stop
+
+.PHONY: minikube-delete
+minikube-delete:
+	minikube delete
+
+# ============================================================================
 # EKS DEPLOYMENT
 # ============================================================================
+
 
 .PHONY: eks-configure
 eks-configure:

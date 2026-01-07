@@ -1,0 +1,13 @@
+# Patch: Convert Streamlit LoadBalancer to NodePort for Minikube
+# Access via: minikube service streamlit-ui --url
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: streamlit-ui
+spec:
+  type: NodePort
+  ports:
+    - port: 8501
+      targetPort: 8501
+      nodePort: 30501  # Fixed port for easy access

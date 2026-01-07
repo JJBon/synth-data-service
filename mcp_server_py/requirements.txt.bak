@@ -1,0 +1,14 @@
+mcp
+fastmcp
+httpx
+uvicorn
+nemo-microservices
+pandas
+pyarrow
+jinja2
+huggingface_hub
+pydantic
+boto3
+aiohttp
+python-json-logger
+duckdb

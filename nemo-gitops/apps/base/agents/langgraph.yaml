@@ -15,21 +15,26 @@ spec:
     spec:
       containers:
       - name: langgraph-server
-        image: 668102661106.dkr.ecr.us-east-1.amazonaws.com/langgraph-server:latest
+        image: ealen/echo-server:latest
         ports:
         - containerPort: 8003
         env:
-        - name: MCP_SERVER_URL
-          value: "http://mcp-server-sdk:8002/sse"
-        - name: LLM_BASE_URL
-          value: "http://litellm:4000/v1"
-        - name: LLM_MODEL
-          value: "bedrock-claude-haiku"
-        # Secrets should be injected via envFrom or secretKeyRef
-        envFrom:
-        - secretRef:
-            name: app-secrets
-
+        - name: PORT
+          value: "8003"
+        - name: DISABLE_LOGS
+          value: "false"
+        - name: ENABLE_LOGS
+          value: "true"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8003
+          initialDelaySeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8003
+          initialDelaySeconds: 10
 ---
 apiVersion: v1
 kind: Service
@@ -42,3 +47,4 @@ spec:
   ports:
   - port: 8003
     targetPort: 8003
+  type: LoadBalancer

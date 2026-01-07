@@ -1,0 +1,23 @@
+# Requirements for AWS Bedrock AgentCore deployment
+# These are the minimal dependencies needed to run the MCP server
+
+# MCP Server Framework
+fastmcp>=0.1.0
+mcp>=1.0.0
+
+# HTTP client for NeMo API calls
+httpx>=0.27.0
+
+# Data validation
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# NeMo SDK (if available)
+# NeMo SDK (if available)
+nemo-microservices>=0.1.0; python_version >= "3.10"
+
+# Utils
+pandas
+jinja2
+boto3
+

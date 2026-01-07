@@ -87,6 +87,7 @@ spec:
   ports:
   - port: 4000
     targetPort: 4000
+  type: LoadBalancer
 ---
 apiVersion: v1
 kind: ConfigMap

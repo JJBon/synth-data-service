@@ -36,7 +36,7 @@ except ImportError as e:
     SDK_AVAILABLE = False
 
 # Initialize FastMCP
-mcp = FastMCP("nemo-data-designer-sdk")
+mcp = FastMCP("nemo-data-designer-sdk", streamable_http_path="/")
 
 # Global state using high-level config builder
 _config_builder: Optional[Any] = None
@@ -857,7 +857,7 @@ if __name__ == "__main__":
         mcp.run(transport="sse", host=host, port=port)
     elif transport == "streamable-http":
         # AgentCore runtime expects streamable-http
-        mcp.run(transport="streamable-http")
+        mcp.run(transport="streamable-http", host=host, port=port)
     else:
         logging.warning(f"Unknown transport {transport}, defaulting to stdio")
         mcp.run(transport="stdio")

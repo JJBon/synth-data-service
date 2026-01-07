@@ -2,13 +2,13 @@ mcp
 fastmcp
 httpx
 uvicorn
-nemo-microservices
+# nemo-microservices
 pandas
-pyarrow
+# pyarrow
 jinja2
 huggingface_hub
 pydantic
 boto3
 aiohttp
 python-json-logger
-duckdb
+# duckdb

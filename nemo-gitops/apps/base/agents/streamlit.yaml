@@ -46,13 +46,11 @@ kind: Service
 metadata:
   name: streamlit-ui
   namespace: default
-  annotations:
-    service.beta.kubernetes.io/aws-load-balancer-type: nlb
-    service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+  annotations: {}
 spec:
   selector:
     app: streamlit-ui
   ports:
   - port: 8501
     targetPort: 8501
-  type: LoadBalancer # Expose to user
+  type: LoadBalancer
