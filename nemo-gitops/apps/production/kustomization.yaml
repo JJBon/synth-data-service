@@ -5,4 +5,4 @@ resources:
   - ../base/litellm
 
   - ../base/nemo
-  - ../base/karpenter
+
