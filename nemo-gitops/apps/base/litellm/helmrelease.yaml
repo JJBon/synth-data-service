@@ -1,0 +1,60 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: litellm
+  namespace: default
+spec:
+  interval: 5m
+  chart:
+    spec:
+      chart: litellm-helm
+      version: "0.1.2"
+      sourceRef:
+        kind: HelmRepository
+        name: litellm
+        namespace: flux-system
+      interval: 1h
+  values:
+    image:
+      repository: ghcr.io/berriai/litellm
+      tag: main-stable
+    service:
+      type: LoadBalancer
+      port: 4000
+    extraEnv:
+      - name: LITELLM_MASTER_KEY
+        valueFrom:
+          secretKeyRef:
+            name: litellm-secrets
+            key: LITELLM_MASTER_KEY
+      - name: DATABASE_URL
+        valueFrom:
+          secretKeyRef:
+            name: litellm-secrets
+            key: DATABASE_URL
+      - name: AWS_ACCESS_KEY_ID
+        valueFrom:
+          secretKeyRef:
+            name: app-secrets
+            key: AWS_ACCESS_KEY_ID
+      - name: AWS_SECRET_ACCESS_KEY
+        valueFrom:
+          secretKeyRef:
+            name: app-secrets
+            key: AWS_SECRET_ACCESS_KEY
+      - name: AWS_REGION_NAME
+        valueFrom:
+          secretKeyRef:
+            name: app-secrets
+            key: AWS_REGION_NAME
+      - name: LITELLM_ALLOW_REQUEST_WITHOUT_KEY
+        value: "true"
+    # Assuming the chart uses 'config' parameter to write to config.yaml
+    config: |
+      model_list:
+        - model_name: bedrock-claude-haiku
+          litellm_params:
+            model: bedrock/anthropic.claude-3-haiku-20240307-v1:0
+            aws_region_name: os.environ/AWS_REGION_NAME
+            aws_access_key_id: os.environ/AWS_ACCESS_KEY_ID
+            aws_secret_access_key: os.environ/AWS_SECRET_ACCESS_KEY

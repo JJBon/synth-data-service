@@ -7,8 +7,8 @@ agents:
     deployment_type: container
     source_path: /home/juanjbon/dev/synth-data-service/agentcoreAgentMcp/nemoAgentMcp/src
     aws:
-      account: null
-      region: null
+      account: '668102661106'
+      region: us-east-1
     bedrock_agentcore:
       agent_id: null
       agent_arn: null

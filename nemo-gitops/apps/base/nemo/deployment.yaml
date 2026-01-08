@@ -21,7 +21,7 @@ spec:
         value: "true"
         effect: "NoSchedule"
       nodeSelector:
-        kubernetes.io/hostname: ip-172-31-93-193.ec2.internal
+        kubernetes.io/hostname: ip-172-31-19-127.ec2.internal
       containers:
       - name: data-designer
         image: nvcr.io/nvidia/nemo-microservices/data-designer:25.11
@@ -132,7 +132,7 @@ data:
           config:
             namespace: default
             node_selector:
-              kubernetes.io/hostname: ip-172-31-93-193.ec2.internal
+              kubernetes.io/hostname: ip-172-31-19-127.ec2.internal
             logging:
               sidecar:
                 enabled: false

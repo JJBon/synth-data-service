@@ -311,16 +311,12 @@ ecr-login:
 .PHONY: docker-build-eks
 docker-build-eks:
 	@echo "Building images for EKS..."
-	docker build -t $(ECR_REGISTRY)/mcp-server-sdk:latest ./mcp_server_py
 	docker build -t $(ECR_REGISTRY)/streamlit-ui:latest ./streamlit_app
-	docker build -t $(ECR_REGISTRY)/langgraph-server:latest -f ./langgraph/Dockerfile.server ./langgraph
 
 .PHONY: docker-push-eks
 docker-push-eks: ecr-login docker-build-eks
 	@echo "Pushing images to ECR..."
-	docker push $(ECR_REGISTRY)/mcp-server-sdk:latest
 	docker push $(ECR_REGISTRY)/streamlit-ui:latest
-	docker push $(ECR_REGISTRY)/langgraph-server:latest
 
 # ============================================================================
 # TESTING

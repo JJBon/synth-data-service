@@ -46,7 +46,7 @@ resource "null_resource" "docker_image" {
 
       aws ecr get-login-password | docker login --username AWS --password-stdin ${data.aws_ecr_authorization_token.token.proxy_endpoint}
 
-      docker build -t ${aws_ecr_repository.agentcore_terraform_runtime.repository_url}:latest ../${path.root}
+      docker build -t ${aws_ecr_repository.agentcore_terraform_runtime.repository_url}:latest --platform linux/arm64 ../${path.root}
 
       docker push ${aws_ecr_repository.agentcore_terraform_runtime.repository_url}:latest
     EOF
@@ -187,30 +187,303 @@ resource "aws_bedrockagentcore_gateway_target" "agentcore_gateway_lambda_target"
 
         tool_schema {
           inline_payload {
-            name        = "placeholder_tool"
-            description = "Placeholder tool (no-op)."
+            name        = "init_config"
+            description = "Initialize a new Data Designer configuration."
             input_schema {
-              type        = "object"
-              description = "Example input schema for placeholder tool"
+              type = "object"
+            }
+          }
+
+          inline_payload {
+            name        = "add_uuid_column"
+            description = "Add a UUID column that generates unique identifiers."
+            input_schema {
+              type = "object"
               property {
-                name        = "string_param"
+                name        = "name"
                 type        = "string"
-                description = "Example string parameter."
+                description = "Name of the column"
               }
               property {
-                name        = "int_param"
-                type        = "integer"
-                description = "Example integer parameter."
+                name        = "ctx"
+                type        = "object"
+                description = "Context"
+              }
+            }
+          }
+
+          inline_payload {
+            name        = "add_category_column"
+            description = "Add a column that samples from a fixed list of values."
+            input_schema {
+              type = "object"
+              property {
+                name        = "name"
+                type        = "string"
+                description = "Name of the column"
               }
               property {
-                name        = "float_array_param"
+                name        = "values"
                 type        = "array"
-                description = "Example float array parameter."
+                description = "List of category values"
                 items {
-                  type = "number"
+                   type = "string" 
+                   # Note: Terraform strict type, but array can hold mixed in JSON. Here we assume string largely.
                 }
               }
             }
+          }
+
+          inline_payload {
+            name        = "add_float_column"
+            description = "Add a column that samples floats uniformly from a range [low, high]."
+            input_schema {
+              type = "object"
+              property {
+                name = "name"
+                type = "string"
+              }
+              property {
+                name = "low"
+                type = "number"
+              }
+              property {
+                name = "high"
+                type = "number"
+              }
+            }
+          }
+
+          inline_payload {
+            name        = "add_int_column"
+            description = "Add a column that samples integers uniformly from a range [low, high]."
+            input_schema {
+              type = "object"
+              property {
+                name = "name"
+                type = "string"
+              }
+              property {
+                name = "low"
+                type = "integer"
+              }
+              property {
+                name = "high"
+                type = "integer"
+              }
+            }
+          }
+
+          inline_payload {
+            name        = "add_datetime_column"
+            description = "Add a column that samples datetimes uniformly from a range."
+            input_schema {
+              type = "object"
+              property {
+                name = "name"
+                type = "string"
+              }
+              property {
+                name = "start"
+                type = "string"
+              }
+              property {
+                name = "end"
+                type = "string"
+              }
+              property {
+                name = "unit"
+                type = "string"
+              }
+            }
+          }
+
+          inline_payload {
+            name        = "add_person_column"
+            description = "Add a column that samples realistic person data (name, address, etc)."
+            input_schema {
+              type = "object"
+              property {
+                name = "name"
+                type = "string"
+              }
+            }
+          }
+
+          inline_payload {
+            name        = "add_gaussian_column"
+            description = "Add a column that samples from a Gaussian (Normal) distribution."
+            input_schema {
+              type = "object"
+              property {
+                name = "name"
+                type = "string"
+              }
+              property {
+                name = "mean"
+                type = "number"
+              }
+              property {
+                name = "stddev"
+                type = "number"
+              }
+            }
+          }
+
+          inline_payload {
+            name        = "add_llm_text_column"
+            description = "Add a column generated by an LLM using a prompt template."
+            input_schema {
+              type = "object"
+              property {
+                name = "name"
+                type = "string"
+              }
+              property {
+                name = "model_alias"
+                type = "string"
+              }
+              property {
+                name = "prompt"
+                type = "string"
+              }
+            }
+          }
+
+          inline_payload {
+            name        = "add_model_config"
+            description = "Add a model configuration for LLM-based columns."
+            input_schema {
+              type = "object"
+              property {
+                name = "alias"
+                type = "string"
+              }
+              property {
+                name = "model"
+                type = "string"
+              }
+              property {
+                name = "provider"
+                type = "string"
+              }
+              property {
+                name = "temperature"
+                type = "number"
+              }
+            }
+          }
+
+          inline_payload {
+            name        = "add_column_constraint"
+            description = "Add an inequality constraint between two columns."
+            input_schema {
+              type = "object"
+              property {
+                name = "target_column"
+                type = "string"
+              }
+              property {
+                name = "operator"
+                type = "string"
+              }
+              property {
+                name = "rhs_column"
+                type = "string"
+              }
+            }
+          }
+
+          inline_payload {
+            name        = "get_config_summary"
+            description = "Get a summary of the current configuration."
+            input_schema {
+              type = "object"
+            }
+          }
+          
+          inline_payload {
+             name = "create_job"
+             description = "Submit a synthetic data generation job"
+             input_schema {
+                type = "object"
+                property {
+                   name = "job_name"
+                   type = "string"
+                }
+                property {
+                   name = "num_records"
+                   type = "integer"
+                }
+             }
+          }
+          
+          inline_payload {
+             name = "get_job_status"
+             description = "Get the status of a previously submitted job."
+             input_schema {
+                type = "object"
+                property {
+                   name = "job_id"
+                   type = "string"
+                }
+             }
+          }
+          
+          inline_payload {
+             name = "finalize_submission"
+             description = "Finalize a completed job: load dataset, save to files, and return preview."
+             input_schema {
+                type = "object"
+                property {
+                   name = "job_id"
+                   type = "string"
+                }
+                property {
+                   name = "session_id"
+                   type = "string"
+                }
+             }
+          }
+          
+          inline_payload {
+             name = "preview_data"
+             description = "Generate a quick preview of the data without creating a full job."
+             input_schema {
+                type = "object"
+                property {
+                   name = "num_records"
+                   type = "integer"
+                }
+             }
+          }
+          
+          inline_payload {
+             name = "download_results"
+             description = "Get download links/paths for a completed job's results."
+             input_schema {
+                type = "object"
+                property {
+                   name = "job_id"
+                   type = "string"
+                }
+             }
+          }
+          
+          inline_payload {
+             name = "import_results"
+             description = "Import job results into shared database for display in UI sidebar."
+             input_schema {
+                 type = "object"
+                 property {
+                     name = "job_id"
+                     type = "string"
+                 }
+                 property {
+                     name = "session_id"
+                     type = "string"
+                 }
+             }
           }
         }
       }
