@@ -43,31 +43,70 @@ def _get_state_file(session_id: str) -> str:
         safe_sid = "default"
     return f"{STATE_FILE_PREFIX}_{safe_sid}.json"
 
+
+def _get_s3_bucket():
+    # Hardcode for debugging
+    return "bedrock-agentcore-codebuild-sources-668102661106-us-east-1"
+    # return os.environ.get("S3_STATE_BUCKET")
+
+def _get_state_key(session_id: str) -> str:
+    # Use simple key structure
+    safe_sid = "".join([c for c in session_id if c.isalnum() or c in ('-', '_')])
+    if not safe_sid: safe_sid = "default"
+    return f"mcp-state/{safe_sid}.json"
+
 def _load_state(session_id: str = "default") -> Dict[str, Any]:
-    """Load state from disk for a specific session."""
+    """Load state from S3 or disk."""
+    bucket = _get_s3_bucket()
+    if bucket:
+        try:
+            import boto3
+            s3 = boto3.client("s3")
+            key = _get_state_key(session_id)
+            print(f"DEBUG: Loading state from S3://{bucket}/{key}")
+            obj = s3.get_object(Bucket=bucket, Key=key)
+            data = json.loads(obj["Body"].read().decode("utf-8"))
+            return data
+        except Exception as e:
+            # S3 miss or error - treat as empty session
+            print(f"DEBUG: S3 load failed (new session?): {e}")
+            return {"columns": [], "model_configs": [], "constraints": []}
+
     state_file = _get_state_file(session_id)
-    logging.info(f"Loading state for session '{session_id}' from '{state_file}'")
     if os.path.exists(state_file):
         try:
             with open(state_file, 'r') as f:
-                data = json.load(f)
-                logging.info(f"Loaded {len(data.get('columns', []))} columns, {len(data.get('model_configs', []))} models")
-                return data
+                return json.load(f)
         except Exception as e:
-            logging.error(f"Failed to load state for session {session_id}: {e}")
-    else:
-        logging.info(f"State file {state_file} does not exist. Returning empty.")
+            logging.error(f"Failed to load state: {e}")
     return {"columns": [], "model_configs": [], "constraints": []}
 
 def _save_state(state: Dict[str, Any], session_id: str = "default"):
-    """Save state to disk for a specific session."""
+    """Save state to S3 or disk."""
+    bucket = _get_s3_bucket()
+    if bucket:
+        try:
+            import boto3
+            s3 = boto3.client("s3")
+            key = _get_state_key(session_id)
+            s3.put_object(
+                Bucket=bucket, 
+                Key=key, 
+                Body=json.dumps(state),
+                ContentType="application/json"
+            )
+            print(f"DEBUG: Saved state to S3://{bucket}/{key}")
+            return
+        except Exception as e:
+            print(f"DEBUG: Failed to save to S3: {e}")
+            # Fallback to local
+            
     state_file = _get_state_file(session_id)
-    logging.info(f"Saving state for session '{session_id}' to '{state_file}' (Models: {len(state.get('model_configs', []))})")
     try:
         with open(state_file, 'w') as f:
             json.dump(state, f)
     except Exception as e:
-        logging.error(f"Failed to save state for session {session_id}: {e}")
+        logging.error(f"Failed to save state: {e}")
 
 def _validate_column_name(name: str) -> Optional[dict]:
     if not re.match(r"^[a-zA-Z0-9_]+$", name):
@@ -76,7 +115,7 @@ def _validate_column_name(name: str) -> Optional[dict]:
 
 def get_client():
     if SDK_AVAILABLE:
-        base_url = os.environ.get("NEMO_BASE_URL", "http://localhost:8080")
+        base_url = os.environ.get("NEMO_BASE_URL", "http://aa744d0367ac64916bb1ca142fb92ead-41fcd1ae0f388842.elb.us-east-1.amazonaws.com:8000")
         return NeMoDataDesignerClient(base_url=base_url)
     return None
 
@@ -179,6 +218,7 @@ def rebuild_builder_from_state(session_id: str = "default") -> Any:
 @mcp.tool()
 def init_config(ctx: Context = None) -> dict:
     session_id = ctx.session_id if ctx and ctx.session_id else "default"
+    print(f"DEBUG: init_config session_id='{session_id}' ctx={ctx}")
     logging.info(f"init_config called for session: {session_id}")
     _save_state({"columns": [], "model_configs": [], "constraints": []}, session_id)
     return {"status": "initialized", "message": "Configuration reset.", "sdk_available": SDK_AVAILABLE}
@@ -188,6 +228,7 @@ def add_uuid_column(name: str, ctx: Context = None) -> dict:
     if not SDK_AVAILABLE: return {"error": "NeMo SDK not available"}
     
     session_id = ctx.session_id if ctx and ctx.session_id else "default"
+    print(f"DEBUG: add_uuid_column session_id='{session_id}' name='{name}'")
     state = _load_state(session_id)
     # Create object to validate/get default values
     col = SamplerColumnConfig(
@@ -351,10 +392,19 @@ def add_column_constraint(target_column: str, operator: str, rhs_column: str, ct
 def get_config_summary(ctx: Context = None) -> dict:
     session_id = ctx.session_id if ctx and ctx.session_id else "default"
     state = _load_state(session_id)
+    
+    bucket = "bedrock-agentcore-codebuild-sources-668102661106-us-east-1" # Hardcoded for debug
+    
     return {
         "num_columns": len(state.get("columns", [])),
         "num_models": len(state.get("model_configs", [])),
-        "sdk_available": SDK_AVAILABLE
+        "sdk_available": SDK_AVAILABLE,
+        "debug_info": {
+            "session_id": session_id,
+            "state_source": "s3" if bucket else "local",
+            "bucket_used": bucket,
+            "columns_found": [c['name'] for c in state.get("columns", [])]
+        }
     }
 
 @mcp.tool()
@@ -398,7 +448,7 @@ def create_job(job_name: str, num_records: int = 100, ctx: Context = None) -> di
         }
         
         import httpx
-        base_url = os.environ.get("NEMO_BASE_URL", "http://localhost:8080")
+        base_url = os.environ.get("NEMO_BASE_URL", "http://aa744d0367ac64916bb1ca142fb92ead-41fcd1ae0f388842.elb.us-east-1.amazonaws.com:8000")
         url = f"{base_url}/v1/data-designer/jobs"
         
         # Using sync client since tool is sync
@@ -406,6 +456,7 @@ def create_job(job_name: str, num_records: int = 100, ctx: Context = None) -> di
             logging.info(f"Submitting job manually to {url}")
             # Ensure headers are correct if needed, but json=... usually handles Content-Type
             response = http_client.post(url, json=payload)
+            logging.info(f"Response: {response}")
             
             if response.status_code >= 400:
                 logging.error(f"API Error: {response.text}")
@@ -434,7 +485,7 @@ def get_job_status(job_id: str) -> dict:
     if not SDK_AVAILABLE: return {"error": "NeMo SDK not available"}
     try:
         import httpx
-        base_url = os.environ.get("NEMO_BASE_URL", "http://localhost:8080")
+        base_url = os.environ.get("NEMO_BASE_URL", "http://aa744d0367ac64916bb1ca142fb92ead-41fcd1ae0f388842.elb.us-east-1.amazonaws.com:8000")
         with httpx.Client(timeout=10.0) as h:
             res = h.get(f"{base_url}/v1/data-designer/jobs/{job_id}")
             res.raise_for_status()
@@ -448,7 +499,7 @@ def finalize_submission(job_id: str, session_id: str = None) -> dict:
     if not SDK_AVAILABLE: return {"error": "NeMo SDK not available"}
     
     # For now, just simplistic download
-    base_url = os.environ.get("NEMO_BASE_URL", "http://localhost:8080")
+    base_url = os.environ.get("NEMO_BASE_URL", "http://aa744d0367ac64916bb1ca142fb92ead-41fcd1ae0f388842.elb.us-east-1.amazonaws.com:8000")
     try:
         download_url = f"{base_url}/v1/data-designer/jobs/{job_id}/results/dataset/download"
         import httpx

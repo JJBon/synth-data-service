@@ -22,11 +22,11 @@ spec:
         - containerPort: 5432
         env:
         - name: POSTGRES_USER
-          value: "litellm"
+          value: "nmp"
         - name: POSTGRES_PASSWORD
-          value: "litellm"
+          value: "nmp"
         - name: POSTGRES_DB
-          value: "litellmdb"
+          value: "jobs"
         # For production, we should use a PersistentVolumeClaim.
         # For now, we'll use an emptyDir or NO volume for simplicity/recovery speed,
         # mirroring the successful fix for streamlit.

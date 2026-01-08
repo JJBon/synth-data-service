@@ -1,0 +1,23 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: default
+  name: nemo-job-scheduler
+rules:
+- apiGroups: ["", "batch", "apps"]
+  resources: ["jobs", "pods", "persistentvolumeclaims", "configmaps", "secrets", "services", "deployments"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: nemo-job-scheduler-binding
+  namespace: default
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: default
+roleRef:
+  kind: Role
+  name: nemo-job-scheduler
+  apiGroup: rbac.authorization.k8s.io

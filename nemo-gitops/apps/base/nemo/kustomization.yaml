@@ -4,3 +4,6 @@ resources:
   - deployment.yaml
   - core-stack.yaml
   - helmrelease.yaml
+  - pvc.yaml
+  - pv-hostpath.yaml
+  - rbac.yaml

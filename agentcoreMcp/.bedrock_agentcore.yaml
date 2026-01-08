@@ -9,12 +9,12 @@ agents:
     container_runtime: docker
     source_path: /home/juanjbon/dev/synth-data-service/agentcoreMcp
     aws:
-      execution_role: null
-      execution_role_auto_create: true
+      execution_role: arn:aws:iam::668102661106:role/AmazonBedrockAgentCoreSDKRuntime-us-east-1-cb7bbfb8e9
+      execution_role_auto_create: false
       account: '668102661106'
       region: us-east-1
-      ecr_repository: null
-      ecr_auto_create: true
+      ecr_repository: 668102661106.dkr.ecr.us-east-1.amazonaws.com/bedrock-agentcore-my_mcp_server
+      ecr_auto_create: false
       s3_path: null
       s3_auto_create: false
       network_configuration:
@@ -28,21 +28,21 @@ agents:
         idle_runtime_session_timeout: null
         max_lifetime: null
     bedrock_agentcore:
-      agent_id: null
-      agent_arn: null
+      agent_id: my_mcp_server-N3nlW04Mzc
+      agent_arn: arn:aws:bedrock-agentcore:us-east-1:668102661106:runtime/my_mcp_server-N3nlW04Mzc
       agent_session_id: null
     codebuild:
-      project_name: null
-      execution_role: null
-      source_bucket: null
+      project_name: bedrock-agentcore-my_mcp_server-builder
+      execution_role: arn:aws:iam::668102661106:role/AmazonBedrockAgentCoreSDKCodeBuild-us-east-1-cb7bbfb8e9
+      source_bucket: bedrock-agentcore-codebuild-sources-668102661106-us-east-1
     memory:
       mode: STM_ONLY
-      memory_id: null
-      memory_arn: null
-      memory_name: my_mcp_server_memory
+      memory_id: my_mcp_server_mem-QEkoGkCDRE
+      memory_arn: arn:aws:bedrock-agentcore:us-east-1:668102661106:memory/my_mcp_server_mem-QEkoGkCDRE
+      memory_name: my_mcp_server_mem
       event_expiry_days: 30
-      first_invoke_memory_check_done: false
-      was_created_by_toolkit: false
+      first_invoke_memory_check_done: true
+      was_created_by_toolkit: true
     identity:
       credential_providers: []
       workload: null

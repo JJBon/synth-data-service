@@ -46,6 +46,7 @@ spec:
           value: "entitystore"
         - name: MODELS_DATABASE_DIALECT
           value: "postgresql"
+
         - name: MODELS_DATABASE_HOST
           value: "postgres"
         - name: MODELS_DATABASE_PORT
@@ -67,6 +68,7 @@ spec:
             secretKeyRef:
               name: app-secrets
               key: LITELLM_KEY
+
         volumeMounts:
         - name: nemo-config
           mountPath: /etc/nmp
@@ -189,6 +191,7 @@ spec:
       containers:
       - name: entity-store
         image: nvcr.io/nvidia/nemo-microservices/entity-store:25.11
+
         ports:
         - containerPort: 8000
         env:
@@ -239,7 +242,7 @@ spec:
       containers:
       - name: openbao
         image: openbao/openbao:2.3.2
-        command: ["bao", "server", "-dev", "-dev-root-token-id=root"]
+        command: ["bao", "server", "-dev", "-dev-root-token-id=root", "-dev-listen-address=0.0.0.0:8200"]
         ports:
         - containerPort: 8200
 ---

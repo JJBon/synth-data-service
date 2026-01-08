@@ -20,6 +20,8 @@ spec:
         operator: "Equal"
         value: "true"
         effect: "NoSchedule"
+      nodeSelector:
+        kubernetes.io/hostname: ip-172-31-93-193.ec2.internal
       containers:
       - name: data-designer
         image: nvcr.io/nvidia/nemo-microservices/data-designer:25.11
@@ -119,15 +121,21 @@ data:
 
     jobs:
       secrets:
-        backend: vault
-        vault:
-          address: "http://openbao:8200"
-          token: "root"
+        backend: kubernetes
+        kubernetes:
+          namespace: default
 
       executors:
         - provider: cpu
           profile: default
-          backend: kubernetes
+          backend: kubernetes_job
           config:
             namespace: default
-            service_account: default
+            node_selector:
+              kubernetes.io/hostname: ip-172-31-93-193.ec2.internal
+            logging:
+              sidecar:
+                enabled: false
+            storage:
+              pvc_name: nemo-data
+              mount_path: /data
