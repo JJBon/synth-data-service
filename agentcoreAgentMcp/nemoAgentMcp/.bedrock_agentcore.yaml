@@ -1,0 +1,16 @@
+default_agent: nemoAgentMcp_Agent
+is_agentcore_create_with_iac: true
+agents:
+  nemoAgentMcp_Agent:
+    name: nemoAgentMcp_Agent
+    entrypoint: /home/juanjbon/dev/synth-data-service/agentcoreAgentMcp/nemoAgentMcp/src/main.py
+    deployment_type: container
+    source_path: /home/juanjbon/dev/synth-data-service/agentcoreAgentMcp/nemoAgentMcp/src
+    aws:
+      account: null
+      region: null
+    bedrock_agentcore:
+      agent_id: null
+      agent_arn: null
+      agent_session_id: null
+    is_generated_by_agentcore_create: true
